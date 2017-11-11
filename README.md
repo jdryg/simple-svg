@@ -8,8 +8,8 @@ git clone --recursive https://github.com/jdryg/simple-svg.git
 
 ### Code
 
-Library: `src/svg/*`
-Demo: `src/main.cpp`
+* Library: `src/svg/*`
+* Demo: `src/main.cpp`
 
 ### License
 
