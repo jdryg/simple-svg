@@ -767,7 +767,7 @@ static ParseAttr::Result parseGenericShapeAttribute(ParserState* parser, const b
 static bool parseShape_Group(ParserState* parser, Shape* group)
 {
 	bool err = false;
-	while (!parserDone(parser)) {
+	while (!parserDone(parser) && !err) {
 		SVG_CHECK(!(parser->m_Ptr[0] == '/' && parser->m_Ptr[1] == '>'), "Empty group element");
 		if (parserExpectingChar(parser, '>')) {
 			break;
@@ -776,17 +776,15 @@ static bool parseShape_Group(ParserState* parser, Shape* group)
 		bx::StringView name, value;
 		if (!parserGetAttribute(parser, &name, &value)) {
 			err = true;
-			break;
-		}
-
-		// Check if this a generic attribute (i.e. styling)
-		ParseAttr::Result res = parseGenericShapeAttribute(parser, name, value, &group->m_Attrs);
-		if (res == ParseAttr::Fail) {
-			err = true;
-			break;
-		} else if (res == ParseAttr::Unknown) {
-			// No specific attributes for groups. Ignore it.
-			SVG_WARN(false, "Ignoring g attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
+		} else {
+			// Check if this a generic attribute (i.e. styling)
+			ParseAttr::Result res = parseGenericShapeAttribute(parser, name, value, &group->m_Attrs);
+			if (res == ParseAttr::Fail) {
+				err = true;
+			} else if (res == ParseAttr::Unknown) {
+				// No specific attributes for groups. Ignore it.
+				SVG_WARN(false, "Ignoring g attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
+			}
 		}
 	}
 
