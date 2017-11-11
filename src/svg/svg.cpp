@@ -47,7 +47,7 @@ inline void transformIdentity(float* transform)
 	transform[3] = 1.0f;
 }
 
-static Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const ShapeAttributes* parentAttrs)
+Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const ShapeAttributes* parentAttrs)
 {
 	if (shapeList->m_NumShapes + 1 > shapeList->m_Capacity) {
 		const uint32_t oldCapacity = shapeList->m_Capacity;
@@ -63,14 +63,16 @@ static Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, co
 	shape->m_Type = type;
 	
 	// Copy parent attributes (except from id and transform)
-	bx::memCopy(&shape->m_Attrs, parentAttrs, sizeof(ShapeAttributes));
-	shape->m_Attrs.m_ID[0] = '\0';
-	transformIdentity(&shape->m_Attrs.m_Transform[0]);
+	if (parentAttrs) {
+		bx::memCopy(&shape->m_Attrs, parentAttrs, sizeof(ShapeAttributes));
+		shape->m_Attrs.m_ID[0] = '\0';
+		transformIdentity(&shape->m_Attrs.m_Transform[0]);
+	}
 
 	return shape;
 }
 
-static void shapeListShrinkToFit(ShapeList* shapeList)
+void shapeListShrinkToFit(ShapeList* shapeList)
 {
 	if (!shapeList->m_NumShapes && shapeList->m_Capacity) {
 		BX_FREE(s_Allocator, shapeList->m_Shapes);
@@ -82,7 +84,7 @@ static void shapeListShrinkToFit(ShapeList* shapeList)
 	}
 }
 
-static void shapeListFree(ShapeList* shapeList)
+void shapeListFree(ShapeList* shapeList)
 {
 	BX_FREE(s_Allocator, shapeList->m_Shapes);
 	shapeList->m_Shapes = nullptr;
@@ -90,7 +92,7 @@ static void shapeListFree(ShapeList* shapeList)
 	shapeList->m_NumShapes = 0;
 }
 
-static PathCmd* pathAllocCmd(Path* path, PathCmdType::Enum type)
+PathCmd* pathAllocCmd(Path* path, PathCmdType::Enum type)
 {
 	if (path->m_NumCommands + 1 > path->m_Capacity) {
 		const uint32_t oldCapacity = path->m_Capacity;
@@ -106,7 +108,7 @@ static PathCmd* pathAllocCmd(Path* path, PathCmdType::Enum type)
 	return cmd;
 }
 
-static void pathShrinkToFit(Path* path)
+void pathShrinkToFit(Path* path)
 {
 	if (!path->m_NumCommands && path->m_Capacity) {
 		BX_FREE(s_Allocator, path->m_Commands);
@@ -118,7 +120,7 @@ static void pathShrinkToFit(Path* path)
 	}
 }
 
-static void pathFree(Path* path)
+void pathFree(Path* path)
 {
 	BX_FREE(s_Allocator, path->m_Commands);
 	path->m_Commands = nullptr;
@@ -126,22 +128,25 @@ static void pathFree(Path* path)
 	path->m_Capacity = 0;
 }
 
-static float* pointListAllocPoint(PointList* ptList)
+float* pointListAllocPoints(PointList* ptList, uint32_t n)
 {
-	if (ptList->m_NumPoints + 1 > ptList->m_Capacity) {
-		const uint32_t oldCapacity = ptList->m_Capacity;
+	SVG_CHECK(n != 0, "Requested invalid number of points");
 
-		ptList->m_Capacity = oldCapacity ? (oldCapacity * 3) / 2 : 8;
+	if (ptList->m_NumPoints + n > ptList->m_Capacity) {
+		const uint32_t oldCapacity = ptList->m_Capacity;
+		const uint32_t newCapacity = oldCapacity ? (oldCapacity * 3) / 2 : 8;
+
+		ptList->m_Capacity = bx::max<uint32_t>(newCapacity, oldCapacity + n);
 		ptList->m_Coords = (float*)BX_REALLOC(s_Allocator, ptList->m_Coords, sizeof(float) * 2 * ptList->m_Capacity);
 	}
 
 	float* coords = &ptList->m_Coords[ptList->m_NumPoints << 1];
-	++ptList->m_NumPoints;
+	ptList->m_NumPoints += n;
 
 	return coords;
 }
 
-static void pointListShrinkToFit(PointList* ptList)
+void pointListShrinkToFit(PointList* ptList)
 {
 	if (!ptList->m_NumPoints && ptList->m_Capacity) {
 		BX_FREE(s_Allocator, ptList->m_Coords);
@@ -153,7 +158,7 @@ static void pointListShrinkToFit(PointList* ptList)
 	}
 }
 
-static void pointListFree(PointList* ptList)
+void pointListFree(PointList* ptList)
 {
 	BX_FREE(s_Allocator, ptList->m_Coords);
 	ptList->m_Coords = 0;
@@ -460,7 +465,7 @@ static bool parseTransform(ParserState* parser, const bx::StringView& str, float
 	return true;
 }
 
-static bool parsePath(const bx::StringView& str, Path* path)
+bool pathFromString(Path* path, const bx::StringView& str)
 {
 	const char* ptr = str.getPtr();
 	const char* end = str.getTerm();
@@ -679,12 +684,12 @@ static bool parsePath(const bx::StringView& str, Path* path)
 	return true;
 }
 
-static bool parsePointList(const bx::StringView& str, PointList* ptList)
+bool pointListFromString(PointList* ptList, const bx::StringView& str)
 {
 	const char* ptr = str.getPtr();
 	const char* end = str.getTerm();
 	while (ptr != end) {
-		float* pt = pointListAllocPoint(ptList);
+		float* pt = pointListAllocPoints(ptList, 1);
 		ptr = parseCoord(ptr, end, &pt[0]);
 		ptr = parseCoord(ptr, end, &pt[1]);
 	}
@@ -882,7 +887,7 @@ static bool parseShape_Path(ParserState* parser, Shape* path)
 			} else if (res == ParseAttr::Unknown) {
 				// Path specific attributes.
 				if (!bx::strCmp(name, "d", 1)) {
-					err = !parsePath(value, &path->m_Path);
+					err = !pathFromString(&path->m_Path, value);
 				} else {
 					SVG_WARN(false, "Ignoring path attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
 				}
@@ -1118,7 +1123,7 @@ static bool parseShape_PointList(ParserState* parser, Shape* shape)
 			} else if (res == ParseAttr::Unknown) {
 				// Ellipse specific attributes.
 				if (!bx::strCmp(name, "points", 6)) {
-					err = !parsePointList(value, &shape->m_PointList);
+					err = !pointListFromString(&shape->m_PointList, value);
 				} else {
 					SVG_WARN(false, "Ignoring polygon/polyline attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
 				}

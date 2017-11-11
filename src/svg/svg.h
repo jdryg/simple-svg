@@ -47,6 +47,7 @@
 namespace bx
 {
 struct AllocatorI;
+class StringView;
 }
 
 namespace ssvg
@@ -259,6 +260,20 @@ void initLib(bx::AllocatorI* allocator);
 
 Image* loadImage(const char* xmlStr);
 void destroyImage(Image* img);
+
+Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const ShapeAttributes* parentAttrs);
+void shapeListShrinkToFit(ShapeList* shapeList);
+void shapeListFree(ShapeList* shapeList);
+
+PathCmd* pathAllocCmd(Path* path, PathCmdType::Enum type);
+void pathShrinkToFit(Path* path);
+void pathFree(Path* path);
+bool pathFromString(Path* path, const bx::StringView& str);
+
+float* pointListAllocPoints(PointList* ptList, uint32_t n);
+void pointListShrinkToFit(PointList* ptList);
+void pointListFree(PointList* ptList);
+bool pointListFromString(PointList* ptList, const bx::StringView& str);
 }
 
 #endif
