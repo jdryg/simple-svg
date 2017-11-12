@@ -97,6 +97,7 @@ bool testBuilder()
 	{
 		// Create a temporary shape list
 		ssvg::ShapeList tempShapeList;
+		bx::memSet(&tempShapeList, 0, sizeof(ssvg::ShapeList));
 		uint32_t rectID = ssvg::shapeListAddRect(&tempShapeList, nullptr, 100.0f, 100.0f, 200.0f, 200.0f, 0.0f, 0.0f);
 		uint32_t circleID = ssvg::shapeListAddCircle(&tempShapeList, nullptr, 200.0f, 200.0f, 80.0f);
 
