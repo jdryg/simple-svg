@@ -259,7 +259,7 @@ struct Image
 	uint16_t m_VerMinor;
 };
 
-void initLib(bx::AllocatorI* allocator);
+void initLib(bx::AllocatorI* allocator, const ShapeAttributes* defaultAttrs);
 
 Image* imageLoad(const char* xmlStr);
 Image* imageCreate();
@@ -289,8 +289,13 @@ void pointListShrinkToFit(PointList* ptList);
 void pointListFree(PointList* ptList);
 bool pointListFromString(PointList* ptList, const bx::StringView& str);
 
-void shapeSetID(Shape* shape, const bx::StringView& idStr);
+void shapeAttrsSetID(ShapeAttributes* attrs, const bx::StringView& id);
+void shapeAttrsSetFontFamily(ShapeAttributes* attrs, const bx::StringView& fontFamily);
+
 bool shapeCopy(Shape* dst, const Shape* src, bool copyAttrs = true);
+
+void transformIdentity(float* transform);
+void transformMultiply(float* a, const float* b);
 }
 
 #endif

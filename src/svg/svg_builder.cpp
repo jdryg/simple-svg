@@ -4,8 +4,6 @@
 
 namespace ssvg
 {
-extern bx::AllocatorI* s_Allocator;
-
 uint32_t shapeListAddGroup(ShapeList* shapeList, const ShapeAttributes* parentAttrs, const Shape* children, uint32_t numChildren)
 {
 	Shape* group = shapeListAllocShape(shapeList, ShapeType::Group, parentAttrs);
@@ -126,16 +124,15 @@ uint32_t shapeListAddPath(ShapeList* shapeList, const ShapeAttributes* parentAtt
 	}
 
 	if (commands && numCommands) {
-		// Create a temp group on the stack and use shapeCopy()
 		Shape tmpPath;
 		bx::memSet(&tmpPath, 0, sizeof(Shape));
 		tmpPath.m_Type = ShapeType::Path;
 		if (parentAttrs) {
 			bx::memCopy(&tmpPath.m_Attrs, parentAttrs, sizeof(ShapeAttributes));
 		}
-		tmpPath.m_Path.m_Commands = (PathCmd*)commands; // NOTE: Casting a const to not-const should be ok in this case since the tmpGroup is passed as const to shapeCopy().
+		tmpPath.m_Path.m_Commands = (PathCmd*)commands;
 		tmpPath.m_Path.m_NumCommands = numCommands;
-		tmpPath.m_Path.m_Capacity = 0; // capacity < count == read-only list
+		tmpPath.m_Path.m_Capacity = 0;
 
 		shapeCopy(path, &tmpPath);
 	}
@@ -150,7 +147,6 @@ uint32_t shapeListAddText(ShapeList* shapeList, const ShapeAttributes* parentAtt
 		return ~0u;
 	}
 
-	// Create a temp text shape and use shapeCopy() to avoid allocating memory in this file.
 	if (str) {
 		Shape tmpText;
 		bx::memSet(&tmpText, 0, sizeof(Shape));

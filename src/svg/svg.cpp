@@ -6,6 +6,7 @@
 namespace ssvg
 {
 static bx::AllocatorI* s_Allocator = nullptr;
+static ShapeAttributes s_DefaultAttrs;
 
 struct ParseAttr
 {
@@ -40,7 +41,7 @@ inline uint8_t charToNibble(char ch)
 	return 0;
 }
 
-inline void transformIdentity(float* transform)
+void transformIdentity(float* transform)
 {
 	bx::memSet(transform, 0, sizeof(float) * 6);
 	transform[0] = 1.0f;
@@ -48,7 +49,7 @@ inline void transformIdentity(float* transform)
 }
 
 // a = a * b;
-inline void transformMultiply(float* a, const float* b)
+void transformMultiply(float* a, const float* b)
 {
 	float res[6];
 	res[0] = a[0] * b[0] + a[2] * b[1];
@@ -226,12 +227,20 @@ void pointListFree(PointList* ptList)
 	ptList->m_Capacity = 0;
 }
 
-static void shapeAttrsSetID(ShapeAttributes* attrs, const bx::StringView& value)
+void shapeAttrsSetID(ShapeAttributes* attrs, const bx::StringView& value)
 {
 	uint32_t maxLen = bx::min<uint32_t>(SSVG_CONFIG_ID_MAX_LEN - 1, value.getLength());
 	SVG_WARN((int32_t)maxLen >= value.getLength(), "id \"%.*s\" truncated to %d characters", value.getLength(), value.getPtr(), maxLen);
 	bx::memCopy(&attrs->m_ID[0], value.getPtr(), maxLen);
 	attrs->m_ID[maxLen] = '\0';
+}
+
+void shapeAttrsSetFontFamily(ShapeAttributes* attrs, const bx::StringView& value)
+{
+	uint32_t maxLen = bx::min<uint32_t>(SSVG_CONFIG_FONT_FAMILY_MAX_LEN - 1, value.getLength());
+	SVG_WARN((int32_t)maxLen >= value.getLength(), "font-family \"%.*s\" truncated to %d characters", value.getLength(), value.getPtr(), maxLen);
+	bx::memCopy(&attrs->m_FontFamily[0], value.getPtr(), maxLen);
+	attrs->m_FontFamily[maxLen] = '\0';
 }
 
 inline bool parserDone(ParserState* parser)
@@ -941,10 +950,7 @@ static ParseAttr::Result parseGenericShapeAttribute(ParserState* parser, const b
 	} else if (!bx::strCmp(name, "font", 4)) {
 		const bx::StringView partialName(name.getPtr() + 4, name.getLength() - 4);
 		if (!bx::strCmp(partialName, "-family", 7)) {
-			uint32_t maxLen = bx::min<uint32_t>(SSVG_CONFIG_FONT_FAMILY_MAX_LEN - 1, value.getLength());
-			SVG_WARN((int32_t)maxLen >= value.getLength(), "font-family \"%.*s\" truncated to %d characters", value.getLength(), value.getPtr(), maxLen);
-			bx::memCopy(&attrs->m_FontFamily[0], value.getPtr(), maxLen);
-			attrs->m_FontFamily[maxLen] = '\0';
+			shapeAttrsSetFontFamily(attrs, value);
 			return ParseAttr::OK;
 		} else if (!bx::strCmp(partialName, "-size", 5)) {
 			return parseLength(parser, value, &attrs->m_FontSize) ? ParseAttr::OK : ParseAttr::Fail;
@@ -1442,22 +1448,7 @@ static bool parseTag_svg(ParserState* parser, Image* img)
 		return false;
 	}
 
-	ShapeAttributes defaultAttrs;
-	bx::memSet(&defaultAttrs, 0, sizeof(ShapeAttributes));
-	defaultAttrs.m_StrokeWidth = 1.0f;
-	defaultAttrs.m_StrokeMiterLimit = 4.0f;
-	defaultAttrs.m_StrokeOpacity = 1.0f;
-	defaultAttrs.m_StrokePaint.m_Type = PaintType::None;
-	defaultAttrs.m_StrokePaint.m_ColorABGR = 0x00000000; // Transparent
-	defaultAttrs.m_StrokeLineCap = LineCap::Butt;
-	defaultAttrs.m_StrokeLineJoin = LineJoin::Miter;
-	defaultAttrs.m_FillOpacity = 1.0f;
-	defaultAttrs.m_FillPaint.m_Type = PaintType::None;
-	defaultAttrs.m_FillPaint.m_ColorABGR = 0x00000000;
-	transformIdentity(&defaultAttrs.m_Transform[0]);
-	bx::snprintf(defaultAttrs.m_FontFamily, SSVG_CONFIG_FONT_FAMILY_MAX_LEN, "%s", "sans-serif");
-
-	return parseShapes(parser, &img->m_ShapeList, &defaultAttrs, "</svg>", 6);
+	return parseShapes(parser, &img->m_ShapeList, &s_DefaultAttrs, "</svg>", 6);
 }
 
 Image* imageCreate()
@@ -1555,14 +1546,26 @@ void imageDestroy(Image* img)
 	BX_FREE(s_Allocator, img);
 }
 
-void initLib(bx::AllocatorI* allocator)
+void initLib(bx::AllocatorI* allocator, const ShapeAttributes* defaultAttrs)
 {
 	s_Allocator = allocator;
-}
-
-void shapeSetID(Shape* shape, const bx::StringView& idStr)
-{
-	shapeAttrsSetID(&shape->m_Attrs, idStr);
+	if (defaultAttrs) {
+		bx::memCopy(&s_DefaultAttrs, defaultAttrs, sizeof(ShapeAttributes));
+	} else {
+		bx::memSet(&s_DefaultAttrs, 0, sizeof(ShapeAttributes));
+		s_DefaultAttrs.m_StrokeWidth = 1.0f;
+		s_DefaultAttrs.m_StrokeMiterLimit = 4.0f;
+		s_DefaultAttrs.m_StrokeOpacity = 1.0f;
+		s_DefaultAttrs.m_StrokePaint.m_Type = PaintType::None;
+		s_DefaultAttrs.m_StrokePaint.m_ColorABGR = 0x00000000; // Transparent
+		s_DefaultAttrs.m_StrokeLineCap = LineCap::Butt;
+		s_DefaultAttrs.m_StrokeLineJoin = LineJoin::Miter;
+		s_DefaultAttrs.m_FillOpacity = 1.0f;
+		s_DefaultAttrs.m_FillPaint.m_Type = PaintType::None;
+		s_DefaultAttrs.m_FillPaint.m_ColorABGR = 0x00000000;
+		transformIdentity(&s_DefaultAttrs.m_Transform[0]);
+		shapeAttrsSetFontFamily(&s_DefaultAttrs, "sans-serif");
+	}
 }
 
 bool shapeCopy(Shape* dst, const Shape* src, bool copyAttrs)

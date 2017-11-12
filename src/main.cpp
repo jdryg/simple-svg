@@ -110,7 +110,22 @@ bool testBuilder()
 
 int main()
 {
-	ssvg::initLib(&g_Allocator);
+	ssvg::ShapeAttributes defaultAttrs;
+	bx::memSet(&defaultAttrs, 0, sizeof(ssvg::ShapeAttributes));
+	defaultAttrs.m_StrokeWidth = 1.0f;
+	defaultAttrs.m_StrokeMiterLimit = 10.0f;
+	defaultAttrs.m_StrokeOpacity = 1.0f;
+	defaultAttrs.m_StrokePaint.m_Type = ssvg::PaintType::Color;
+	defaultAttrs.m_StrokePaint.m_ColorABGR = 0xFF000000; // Black
+	defaultAttrs.m_StrokeLineCap = ssvg::LineCap::Butt;
+	defaultAttrs.m_StrokeLineJoin = ssvg::LineJoin::Miter;
+	defaultAttrs.m_FillOpacity = 0.0f;
+	defaultAttrs.m_FillPaint.m_Type = ssvg::PaintType::None;
+	defaultAttrs.m_FillPaint.m_ColorABGR = 0x00000000;
+	ssvg::transformIdentity(&defaultAttrs.m_Transform[0]);
+	shapeAttrsSetFontFamily(&defaultAttrs, "sans-serif");
+
+	ssvg::initLib(&g_Allocator, &defaultAttrs);
 
 	testParser("./Ghostscript_Tiger.svg");
 	
