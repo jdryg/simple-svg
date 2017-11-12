@@ -283,6 +283,12 @@ PathCmd* pathAllocCommands(Path* path, uint32_t n);
 void pathShrinkToFit(Path* path);
 void pathFree(Path* path);
 bool pathFromString(Path* path, const bx::StringView& str);
+uint32_t pathMoveTo(Path* path, float x, float y);
+uint32_t pathLineTo(Path* path, float x, float y);
+uint32_t pathCubicTo(Path* path, float x1, float y1, float x2, float y2, float x, float y);
+uint32_t pathQuadraticTo(Path* path, float x1, float y1, float x, float y);
+uint32_t pathArcTo(Path* path, float rx, float ry, float xAxisRotation, int largeArcFlag, int sweepFlag, float x, float y);
+uint32_t pathClose(Path* path);
 
 float* pointListAllocPoints(PointList* ptList, uint32_t n);
 void pointListShrinkToFit(PointList* ptList);

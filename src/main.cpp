@@ -71,6 +71,14 @@ bool testBuilder()
 	{
 		uint32_t rectID = ssvg::shapeListAddRect(imgShapeList, nullptr, 100.0f, 100.0f, 200.0f, 200.0f, 0.0f, 0.0f);
 		uint32_t circleID = ssvg::shapeListAddCircle(imgShapeList, nullptr, 200.0f, 200.0f, 80.0f);
+
+		// Path
+		uint32_t pathID = ssvg::shapeListAddPath(imgShapeList, nullptr, nullptr, 0);
+		ssvg::Path* path = &imgShapeList->m_Shapes[pathID].m_Path;
+		ssvg::pathMoveTo(path, 0.0f, 0.0f);
+		ssvg::pathLineTo(path, 10.0f, 10.0f);
+		ssvg::pathCubicTo(path, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 50.0f);
+		ssvg::pathClose(path);
 	}
 
 	// Add shapes to a group

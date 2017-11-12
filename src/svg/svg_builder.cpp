@@ -169,4 +169,67 @@ uint32_t shapeListAddText(ShapeList* shapeList, const ShapeAttributes* parentAtt
 
 	return shapeList->m_NumShapes - 1;
 }
+
+uint32_t pathMoveTo(Path* path, float x, float y)
+{
+	PathCmd* cmd = pathAllocCommand(path, PathCmdType::MoveTo);
+	cmd->m_Data[0] = x;
+	cmd->m_Data[1] = y;
+
+	return path->m_NumCommands - 1;
+}
+
+uint32_t pathLineTo(Path* path, float x, float y)
+{
+	PathCmd* cmd = pathAllocCommand(path, PathCmdType::LineTo);
+	cmd->m_Data[0] = x;
+	cmd->m_Data[1] = y;
+
+	return path->m_NumCommands - 1;
+}
+
+uint32_t pathCubicTo(Path* path, float x1, float y1, float x2, float y2, float x, float y)
+{
+	PathCmd* cmd = pathAllocCommand(path, PathCmdType::CubicTo);
+	cmd->m_Data[0] = x1;
+	cmd->m_Data[1] = y1;
+	cmd->m_Data[2] = x2;
+	cmd->m_Data[3] = y2;
+	cmd->m_Data[4] = x;
+	cmd->m_Data[5] = y;
+
+	return path->m_NumCommands - 1;
+}
+
+uint32_t pathQuadraticTo(Path* path, float x1, float y1, float x, float y)
+{
+	PathCmd* cmd = pathAllocCommand(path, PathCmdType::QuadraticTo);
+	cmd->m_Data[0] = x1;
+	cmd->m_Data[1] = y1;
+	cmd->m_Data[2] = x;
+	cmd->m_Data[3] = y;
+
+	return path->m_NumCommands - 1;
+}
+
+uint32_t pathArcTo(Path* path, float rx, float ry, float xAxisRotation, int largeArcFlag, int sweepFlag, float x, float y)
+{
+	PathCmd* cmd = pathAllocCommand(path, PathCmdType::ArcTo);
+	cmd->m_Data[0] = rx;
+	cmd->m_Data[1] = ry;
+	cmd->m_Data[2] = xAxisRotation;
+	cmd->m_Data[3] = (float)largeArcFlag;
+	cmd->m_Data[4] = (float)sweepFlag;
+	cmd->m_Data[5] = x;
+	cmd->m_Data[6] = y;
+
+	return path->m_NumCommands - 1;
+}
+
+uint32_t pathClose(Path* path)
+{
+	PathCmd* cmd = pathAllocCommand(path, PathCmdType::ClosePath);
+
+	return path->m_NumCommands - 1;
+}
 }
