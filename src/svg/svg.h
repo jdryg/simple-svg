@@ -261,14 +261,25 @@ struct Image
 
 void initLib(bx::AllocatorI* allocator);
 
-Image* loadImage(const char* xmlStr);
-void destroyImage(Image* img);
+Image* imageLoad(const char* xmlStr);
+Image* imageCreate();
+void imageDestroy(Image* img);
 
 Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const ShapeAttributes* parentAttrs);
 void shapeListShrinkToFit(ShapeList* shapeList);
 void shapeListFree(ShapeList* shapeList);
+uint32_t shapeListAddGroup(ShapeList* shapeList, const ShapeAttributes* parentAttrs, const Shape* children, uint32_t numChildren);
+uint32_t shapeListAddRect(ShapeList* shapeList, const ShapeAttributes* parentAttrs, float x, float y, float w, float h, float rx, float ry);
+uint32_t shapeListAddCircle(ShapeList* shapeList, const ShapeAttributes* parentAttrs, float x, float y, float r);
+uint32_t shapeListAddEllipse(ShapeList* shapeList, const ShapeAttributes* parentAttrs, float x, float y, float rx, float ry);
+uint32_t shapeListAddLine(ShapeList* shapeList, const ShapeAttributes* parentAttrs, float x1, float y1, float x2, float y2);
+uint32_t shapeListAddPolyline(ShapeList* shapeList, const ShapeAttributes* parentAttrs, const float* coords, uint32_t numPoints);
+uint32_t shapeListAddPolygon(ShapeList* shapeList, const ShapeAttributes* parentAttrs, const float* coords, uint32_t numPoints);
+uint32_t shapeListAddPath(ShapeList* shapeList, const ShapeAttributes* parentAttrs, const PathCmd* pathCommands, uint32_t commands);
+uint32_t shapeListAddText(ShapeList* shapeList, const ShapeAttributes* parentAttrs, float x, float y, TextAnchor::Enum anchor, const char* text);
 
-PathCmd* pathAllocCmd(Path* path, PathCmdType::Enum type);
+PathCmd* pathAllocCommand(Path* path, PathCmdType::Enum type);
+PathCmd* pathAllocCommands(Path* path, uint32_t n);
 void pathShrinkToFit(Path* path);
 void pathFree(Path* path);
 bool pathFromString(Path* path, const bx::StringView& str);
@@ -277,6 +288,9 @@ float* pointListAllocPoints(PointList* ptList, uint32_t n);
 void pointListShrinkToFit(PointList* ptList);
 void pointListFree(PointList* ptList);
 bool pointListFromString(PointList* ptList, const bx::StringView& str);
+
+void shapeSetID(Shape* shape, const bx::StringView& idStr);
+bool shapeCopy(Shape* dst, const Shape* src, bool copyAttrs = true);
 }
 
 #endif

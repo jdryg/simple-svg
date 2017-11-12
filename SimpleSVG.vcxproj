@@ -163,6 +163,7 @@
     <ClCompile Include="bx\src\url.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\svg\svg.cpp" />
+    <ClCompile Include="src\svg\svg_builder.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bx\src\bx_p.h" />

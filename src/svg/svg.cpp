@@ -82,6 +82,8 @@ inline const char* skipCommaWhitespace(const char* ptr, const char* end)
 
 Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const ShapeAttributes* parentAttrs)
 {
+	SVG_CHECK(shapeList->m_NumShapes <= shapeList->m_Capacity, "Trying to expand a read-only shape list?");
+
 	if (shapeList->m_NumShapes + 1 > shapeList->m_Capacity) {
 		const uint32_t oldCapacity = shapeList->m_Capacity;
 
@@ -107,6 +109,8 @@ Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const Sha
 
 void shapeListShrinkToFit(ShapeList* shapeList)
 {
+	SVG_CHECK(shapeList->m_NumShapes <= shapeList->m_Capacity, "Trying to shrink a read-only shape list?");
+
 	if (!shapeList->m_NumShapes && shapeList->m_Capacity) {
 		BX_FREE(s_Allocator, shapeList->m_Shapes);
 		shapeList->m_Shapes = nullptr;
@@ -119,23 +123,46 @@ void shapeListShrinkToFit(ShapeList* shapeList)
 
 void shapeListFree(ShapeList* shapeList)
 {
+	SVG_CHECK(shapeList->m_NumShapes <= shapeList->m_Capacity, "Trying to free a read-only shape list?");
+
 	BX_FREE(s_Allocator, shapeList->m_Shapes);
 	shapeList->m_Shapes = nullptr;
 	shapeList->m_Capacity = 0;
 	shapeList->m_NumShapes = 0;
 }
 
-PathCmd* pathAllocCmd(Path* path, PathCmdType::Enum type)
+void shapeListReserve(ShapeList* shapeList, uint32_t capacity)
 {
-	if (path->m_NumCommands + 1 > path->m_Capacity) {
-		const uint32_t oldCapacity = path->m_Capacity;
+	const uint32_t oldCapacity = shapeList->m_Capacity;
+	if (oldCapacity <= capacity) {
+		return;
+	}
 
-		path->m_Capacity = oldCapacity ? (oldCapacity * 3) / 2 : 4;
+	shapeList->m_Capacity = capacity;
+	shapeList->m_Shapes = (Shape*)BX_REALLOC(s_Allocator, shapeList->m_Shapes, sizeof(Shape) * shapeList->m_Capacity);
+	bx::memSet(&shapeList->m_Shapes[oldCapacity], 0, sizeof(Shape) * (shapeList->m_Capacity - oldCapacity));
+}
+
+PathCmd* pathAllocCommands(Path* path, uint32_t n)
+{
+	if (path->m_NumCommands + n > path->m_Capacity) {
+		const uint32_t oldCapacity = path->m_Capacity;
+		const uint32_t newCapacity = oldCapacity ? (oldCapacity * 3) / 2 : 4;
+
+		path->m_Capacity = bx::max<uint32_t>(newCapacity, oldCapacity + n);
 		path->m_Commands = (PathCmd*)BX_REALLOC(s_Allocator, path->m_Commands, sizeof(PathCmd) * path->m_Capacity);
 		bx::memSet(&path->m_Commands[oldCapacity], 0, sizeof(PathCmd) * (path->m_Capacity - oldCapacity));
 	}
 
-	PathCmd* cmd = &path->m_Commands[path->m_NumCommands++];
+	PathCmd* firstCmd = &path->m_Commands[path->m_NumCommands];
+	path->m_NumCommands += n;
+
+	return firstCmd;
+}
+
+PathCmd* pathAllocCommand(Path* path, PathCmdType::Enum type)
+{
+	PathCmd* cmd = pathAllocCommands(path, 1);
 	cmd->m_Type = type;
 
 	return cmd;
@@ -197,6 +224,14 @@ void pointListFree(PointList* ptList)
 	ptList->m_Coords = 0;
 	ptList->m_NumPoints = 0;
 	ptList->m_Capacity = 0;
+}
+
+static void shapeAttrsSetID(ShapeAttributes* attrs, const bx::StringView& value)
+{
+	uint32_t maxLen = bx::min<uint32_t>(SSVG_CONFIG_ID_MAX_LEN - 1, value.getLength());
+	SVG_WARN((int32_t)maxLen >= value.getLength(), "id \"%.*s\" truncated to %d characters", value.getLength(), value.getPtr(), maxLen);
+	bx::memCopy(&attrs->m_ID[0], value.getPtr(), maxLen);
+	attrs->m_ID[maxLen] = '\0';
 }
 
 inline bool parserDone(ParserState* parser)
@@ -649,7 +684,7 @@ bool pathFromString(Path* path, const bx::StringView& str)
 
 		if (lch == 'm') {
 			// MoveTo
-			PathCmd* cmd = pathAllocCmd(path, PathCmdType::MoveTo);
+			PathCmd* cmd = pathAllocCommand(path, PathCmdType::MoveTo);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[0]);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[1]);
 
@@ -662,7 +697,7 @@ bool pathFromString(Path* path, const bx::StringView& str)
 			firstY = lastY = cmd->m_Data[1];
 		} else if (lch == 'l') {
 			// LineTo abs
-			PathCmd* cmd = pathAllocCmd(path, PathCmdType::LineTo);
+			PathCmd* cmd = pathAllocCommand(path, PathCmdType::LineTo);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[0]);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[1]);
 
@@ -675,7 +710,7 @@ bool pathFromString(Path* path, const bx::StringView& str)
 			lastY = cmd->m_Data[1];
 		} else if (lch == 'h') {
 			// Horizontal LineTo abs
-			PathCmd* cmd = pathAllocCmd(path, PathCmdType::LineTo);
+			PathCmd* cmd = pathAllocCommand(path, PathCmdType::LineTo);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[0]);
 			cmd->m_Data[1] = lastY;
 
@@ -687,7 +722,7 @@ bool pathFromString(Path* path, const bx::StringView& str)
 			lastY = cmd->m_Data[1];
 		} else if (lch == 'v') {
 			// Vertical LineTo abs
-			PathCmd* cmd = pathAllocCmd(path, PathCmdType::LineTo);
+			PathCmd* cmd = pathAllocCommand(path, PathCmdType::LineTo);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[1]);
 			cmd->m_Data[0] = lastX;
 
@@ -699,7 +734,7 @@ bool pathFromString(Path* path, const bx::StringView& str)
 			lastY = cmd->m_Data[1];
 		} else if (lch == 'z') {
 			// ClosePath
-			PathCmd* cmd = pathAllocCmd(path, PathCmdType::ClosePath);
+			PathCmd* cmd = pathAllocCommand(path, PathCmdType::ClosePath);
 			BX_UNUSED(cmd);
 			lastX = firstX;
 			lastY = firstY;
@@ -707,7 +742,7 @@ bool pathFromString(Path* path, const bx::StringView& str)
 			ptr = skipCommaWhitespace(ptr, end);
 		} else if (lch == 'c') {
 			// CubicTo abs
-			PathCmd* cmd = pathAllocCmd(path, PathCmdType::CubicTo);
+			PathCmd* cmd = pathAllocCommand(path, PathCmdType::CubicTo);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[0]);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[1]);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[2]);
@@ -730,7 +765,7 @@ bool pathFromString(Path* path, const bx::StringView& str)
 			lastY = cmd->m_Data[5];
 		} else if (lch == 's') {
 			// CubicTo abs
-			PathCmd* cmd = pathAllocCmd(path, PathCmdType::CubicTo);
+			PathCmd* cmd = pathAllocCommand(path, PathCmdType::CubicTo);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[2]);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[3]);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[4]);
@@ -764,7 +799,7 @@ bool pathFromString(Path* path, const bx::StringView& str)
 			lastY = cmd->m_Data[5];
 		} else if (lch == 'q') {
 			// QuadraticTo abs
-			PathCmd* cmd = pathAllocCmd(path, PathCmdType::QuadraticTo);
+			PathCmd* cmd = pathAllocCommand(path, PathCmdType::QuadraticTo);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[0]);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[1]);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[2]);
@@ -783,7 +818,7 @@ bool pathFromString(Path* path, const bx::StringView& str)
 			lastY = cmd->m_Data[3];
 		} else if (lch == 't') {
 			// QuadraticTo abs
-			PathCmd* cmd = pathAllocCmd(path, PathCmdType::QuadraticTo);
+			PathCmd* cmd = pathAllocCommand(path, PathCmdType::QuadraticTo);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[2]);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[3]);
 
@@ -813,7 +848,7 @@ bool pathFromString(Path* path, const bx::StringView& str)
 			lastY = cmd->m_Data[3];
 		} else if (lch == 'a') {
 			// ArcTo abs
-			PathCmd* cmd = pathAllocCmd(path, PathCmdType::ArcTo);
+			PathCmd* cmd = pathAllocCommand(path, PathCmdType::ArcTo);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[0]);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[1]);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[2]);
@@ -917,10 +952,7 @@ static ParseAttr::Result parseGenericShapeAttribute(ParserState* parser, const b
 	} else if (!bx::strCmp(name, "transform", 9)) {
 		return parseTransform(parser, value, &attrs->m_Transform[0]) ? ParseAttr::OK : ParseAttr::Fail;
 	} else if (!bx::strCmp(name, "id", 2)) {
-		uint32_t maxLen = bx::min<uint32_t>(SSVG_CONFIG_ID_MAX_LEN - 1, value.getLength());
-		SVG_WARN((int32_t)maxLen >= value.getLength(), "id \"%.*s\" truncated to %d characters", value.getLength(), value.getPtr(), maxLen);
-		bx::memCopy(&attrs->m_ID[0], value.getPtr(), maxLen);
-		attrs->m_ID[maxLen] = '\0';
+		shapeAttrsSetID(attrs, value);
 		return ParseAttr::OK;
 	}
 
@@ -1428,7 +1460,7 @@ static bool parseTag_svg(ParserState* parser, Image* img)
 	return parseShapes(parser, &img->m_ShapeList, &defaultAttrs, "</svg>", 6);
 }
 
-Image* imageAlloc()
+Image* imageCreate()
 {
 	Image* img = (Image*)BX_ALLOC(s_Allocator, sizeof(Image));
 	bx::memSet(img, 0, sizeof(Image));
@@ -1436,13 +1468,13 @@ Image* imageAlloc()
 	return img;
 }
 
-Image* loadImage(const char* xmlStr)
+Image* imageLoad(const char* xmlStr)
 {
 	if (!xmlStr || *xmlStr == 0) {
 		return nullptr;
 	}
 
-	Image* img = imageAlloc();
+	Image* img = imageCreate();
 
 	ParserState parser;
 	parser.m_XMLString = xmlStr;
@@ -1485,7 +1517,7 @@ Image* loadImage(const char* xmlStr)
 	}
 
 	if (err) {
-		destroyImage(img);
+		imageDestroy(img);
 		img = nullptr;
 	}
 
@@ -1517,7 +1549,7 @@ void destroyShapeList(ShapeList* shapeList)
 	shapeListFree(shapeList);
 }
 
-void destroyImage(Image* img)
+void imageDestroy(Image* img)
 {
 	destroyShapeList(&img->m_ShapeList);
 	BX_FREE(s_Allocator, img);
@@ -1526,5 +1558,84 @@ void destroyImage(Image* img)
 void initLib(bx::AllocatorI* allocator)
 {
 	s_Allocator = allocator;
+}
+
+void shapeSetID(Shape* shape, const bx::StringView& idStr)
+{
+	shapeAttrsSetID(&shape->m_Attrs, idStr);
+}
+
+bool shapeCopy(Shape* dst, const Shape* src, bool copyAttrs)
+{
+	const ShapeType::Enum type = src->m_Type;
+
+	dst->m_Type = type;
+	if (copyAttrs) {
+		bx::memCopy(&dst->m_Attrs, &src->m_Attrs, sizeof(ShapeAttributes));
+	}
+
+	switch (type) {
+	case ShapeType::Group:
+	{
+		const ShapeList* srcShapeList = &src->m_ShapeList;
+		const uint32_t numShapes = srcShapeList->m_NumShapes;
+
+		ShapeList* dstShapeList = &dst->m_ShapeList;
+		shapeListReserve(dstShapeList, numShapes);
+
+		for (uint32_t i = 0; i < numShapes; ++i) {
+			const Shape* srcShape = &srcShapeList->m_Shapes[i];
+			Shape* dstShape = shapeListAllocShape(dstShapeList, srcShape->m_Type, nullptr);
+			shapeCopy(dstShape, srcShape);
+		}
+	}
+		break;
+	case ShapeType::Rect:
+		bx::memCopy(&dst->m_Rect, &src->m_Rect, sizeof(Rect));
+		break;
+	case ShapeType::Circle:
+		bx::memCopy(&dst->m_Circle, &src->m_Circle, sizeof(Circle));
+		break;
+	case ShapeType::Ellipse:
+		bx::memCopy(&dst->m_Ellipse, &src->m_Ellipse, sizeof(Ellipse));
+		break;
+	case ShapeType::Line:
+		bx::memCopy(&dst->m_Line, &src->m_Line, sizeof(Line));
+		break;
+	case ShapeType::Polyline:
+	case ShapeType::Polygon:
+		bx::memCopy(
+			pointListAllocPoints(&dst->m_PointList, src->m_PointList.m_NumPoints), 
+			src->m_PointList.m_Coords, 
+			sizeof(float) * 2 * src->m_PointList.m_NumPoints);
+		break;
+	case ShapeType::Path:
+	{
+		const Path* srcPath = &src->m_Path;
+		const uint32_t numCommands = srcPath->m_NumCommands;
+
+		Path* dstPath = &dst->m_Path;
+		PathCmd* dstCommands = pathAllocCommands(dstPath, numCommands);
+		bx::memCopy(dstCommands, srcPath->m_Commands, sizeof(PathCmd) * numCommands);
+	}
+		break;
+	case ShapeType::Text:
+	{
+		const Text* srcText = &src->m_Text;
+		Text* dstText = &dst->m_Text;
+
+		dstText->x = srcText->x;
+		dstText->y = srcText->y;
+		dstText->m_Anchor = srcText->m_Anchor;
+		
+		const uint32_t len = bx::strLen(srcText->m_String);
+		dstText->m_String = (char*)BX_ALLOC(s_Allocator, sizeof(char) * (len + 1));
+		bx::memCopy(dstText->m_String, srcText->m_String, len);
+		dstText->m_String[len] = '\0';
+	}
+		break;
+	}
+
+	return true;
 }
 } // namespace svg

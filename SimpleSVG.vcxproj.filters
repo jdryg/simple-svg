@@ -79,6 +79,9 @@
     <ClCompile Include="bx\src\url.cpp">
       <Filter>bx</Filter>
     </ClCompile>
+    <ClCompile Include="src\svg\svg_builder.cpp">
+      <Filter>svg</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\svg\svg.h">
