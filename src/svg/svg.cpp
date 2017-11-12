@@ -47,6 +47,39 @@ inline void transformIdentity(float* transform)
 	transform[3] = 1.0f;
 }
 
+// a = a * b;
+inline void transformMultiply(float* a, const float* b)
+{
+	float res[6];
+	res[0] = a[0] * b[0] + a[2] * b[1];
+	res[1] = a[1] * b[0] + a[3] * b[1];
+	res[2] = a[0] * b[2] + a[2] * b[3];
+	res[3] = a[1] * b[2] + a[3] * b[3];
+	res[4] = a[0] * b[4] + a[2] * b[5] + a[4];
+	res[5] = a[1] * b[4] + a[3] * b[5] + a[5];
+	bx::memCopy(a, res, sizeof(float) * 6);
+}
+
+inline const char* skipWhitespace(const char* ptr, const char* end)
+{
+	while (ptr != end && bx::isSpace(*ptr) && *ptr != '\0') {
+		++ptr;
+	}
+
+	return ptr;
+}
+
+inline const char* skipCommaWhitespace(const char* ptr, const char* end)
+{
+	// comma-wsp: (wsp+ comma? wsp*) | (comma wsp*)
+	ptr = skipWhitespace(ptr, end);
+	if (*ptr == ',') {
+		ptr = skipWhitespace(ptr + 1, end);
+	}
+
+	return ptr;
+}
+
 Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const ShapeAttributes* parentAttrs)
 {
 	if (shapeList->m_NumShapes + 1 > shapeList->m_Capacity) {
@@ -173,11 +206,7 @@ inline bool parserDone(ParserState* parser)
 
 inline void parserSkipWhitespace(ParserState* parser)
 {
-	const char* ch = parser->m_Ptr;
-	while (bx::isSpace(*ch)) {
-		++ch;
-	}
-	parser->m_Ptr = ch;
+	parser->m_Ptr = skipWhitespace(parser->m_Ptr, nullptr);
 }
 
 static bool parserExpectingChar(ParserState* parser, char ch)
@@ -208,30 +237,6 @@ inline bool parserExpectingString(ParserState* parser, const char* str, uint32_t
 	}
 	
 	return false;
-}
-
-static bool parserGetTag(ParserState* parser, bx::StringView* tag)
-{
-	if (!parserExpectingChar(parser, '<')) {
-		return false;
-	}
-	parserSkipWhitespace(parser); // Is it valid to have a whitespace after the < for a tag?
-
-	const char* tagPtr = parser->m_Ptr;
-	++parser->m_Ptr;
-
-	// Search for the next whitespace or closing angle bracket
-	while (!parserDone(parser) && !bx::isSpace(*parser->m_Ptr) && *parser->m_Ptr != '>') {
-		++parser->m_Ptr;
-	}
-
-	if (parserDone(parser)) {
-		return false;
-	}
-
-	tag->set(tagPtr, parser->m_Ptr);
-
-	return true;
 }
 
 // Skips the currently entered tag by counting > and <.
@@ -271,6 +276,47 @@ static void parserSkipTag(ParserState* parser)
 	}
 }
 
+static void parserSkipComment(ParserState* parser)
+{
+	while (!parserDone(parser)) {
+		if (parser->m_Ptr[0] == '-' && parser->m_Ptr[1] == '-' && parser->m_Ptr[2] == '>') {
+			parser->m_Ptr += 3;
+			break;
+		}
+
+		parser->m_Ptr++;
+	}
+}
+
+static bool parserGetTag(ParserState* parser, bx::StringView* tag)
+{
+	if (!parserExpectingChar(parser, '<')) {
+		return false;
+	}
+	parserSkipWhitespace(parser); // Is it valid to have a whitespace after the < for a tag?
+
+	const char* tagPtr = parser->m_Ptr;
+	++parser->m_Ptr;
+
+	// Search for the next whitespace or closing angle bracket
+	while (!parserDone(parser) && !bx::isSpace(*parser->m_Ptr) && *parser->m_Ptr != '>') {
+		++parser->m_Ptr;
+	}
+
+	if (parserDone(parser)) {
+		return false;
+	}
+
+	tag->set(tagPtr, parser->m_Ptr);
+
+	if (!bx::strCmp(*tag, "!--", 3)) {
+		parserSkipComment(parser);
+		return parserGetTag(parser, tag);
+	}
+
+	return true;
+}
+
 static bool parserGetAttribute(ParserState* parser, bx::StringView* name, bx::StringView* value)
 {
 	parserSkipWhitespace(parser);
@@ -282,7 +328,11 @@ static bool parserGetAttribute(ParserState* parser, bx::StringView* name, bx::St
 	const char* namePtr = parser->m_Ptr;
 	
 	// Skip the identifier
-	while (bx::isAlpha(*parser->m_Ptr) || *parser->m_Ptr == '-') {
+	while (bx::isAlpha(*parser->m_Ptr) 
+		|| *parser->m_Ptr == '-' 
+		|| *parser->m_Ptr == '_'
+		|| *parser->m_Ptr == ':') 
+	{
 		++parser->m_Ptr;
 	}
 
@@ -354,20 +404,20 @@ static bool parsePaint(const bx::StringView& str, Paint* paint)
 		paint->m_Type = PaintType::Color;
 
 		const char* ptr = str.getPtr();
-		paint->m_Color = 0xFF000000;
+		paint->m_ColorABGR = 0xFF000000;
 		if (*ptr == '#') {
 			// Hex color
 			if (str.getLength() == 7) {
 				const uint8_t r = (charToNibble(ptr[1]) << 4) | charToNibble(ptr[2]);
 				const uint8_t g = (charToNibble(ptr[3]) << 4) | charToNibble(ptr[4]);
 				const uint8_t b = (charToNibble(ptr[5]) << 4) | charToNibble(ptr[6]);
-				paint->m_Color |= ((uint32_t)r) | ((uint32_t)g << 8) | ((uint32_t)b << 16);
+				paint->m_ColorABGR |= ((uint32_t)r) | ((uint32_t)g << 8) | ((uint32_t)b << 16);
 			} else if (str.getLength() == 4) {
 				const uint8_t r = charToNibble(ptr[1]);
 				const uint8_t g = charToNibble(ptr[2]);
 				const uint8_t b = charToNibble(ptr[3]);
 				const uint32_t rgb = ((uint32_t)r) | ((uint32_t)g << 8) | ((uint32_t)b << 16);
-				paint->m_Color |= rgb | (rgb << 4);
+				paint->m_ColorABGR |= rgb | (rgb << 4);
 			} else {
 				SVG_WARN(false, "Unknown hex color format %.*s", str.getLength(), str.getPtr());
 			}
@@ -382,17 +432,7 @@ static bool parsePaint(const bx::StringView& str, Paint* paint)
 // TODO: More tests!
 static const char* parseCoord(const char* str, const char* end, float* coord)
 {
-	const char* ptr = str;
-
-	// Skip leading whitespaces and commas
-	while (ptr != end) {
-		const char ch = *ptr;
-		if (!bx::isSpace(ch) && ch != ',') {
-			break;
-		}
-
-		++ptr;
-	}
+	const char* ptr = skipCommaWhitespace(str, end);
 
 	SVG_CHECK(ptr != end && !bx::isAlpha(*ptr), "Parse error");
 
@@ -405,6 +445,7 @@ static const char* parseCoord(const char* str, const char* end, float* coord)
 
 	// Skip number
 	bool dotFound = false;
+	bool expFound = false;
 	BX_UNUSED(dotFound); // Used only in debug mode.
 	while (ptr != end) {
 		const char ch = *ptr;
@@ -412,6 +453,10 @@ static const char* parseCoord(const char* str, const char* end, float* coord)
 			if (ch == '.') {
 				SVG_CHECK(!dotFound, "Parse error: Multiple decimal places in coord!");
 				dotFound = true;
+			} else if (ch == 'e') {
+				expFound = true;
+				++ptr;
+				break;
 			} else {
 				break;
 			}
@@ -420,46 +465,158 @@ static const char* parseCoord(const char* str, const char* end, float* coord)
 		++ptr;
 	}
 
-	// Skip trailing whitespaces and commas
-	while (ptr != end) {
-		const char ch = *ptr;
-		if (!bx::isSpace(ch) && ch != ',') {
-			break;
+	if (expFound) {
+		// Parse the exponent.
+		// Skip optional sign
+		if (*ptr == '-' || *ptr == '+') {
+			++ptr;
 		}
 
+		while (ptr != end && bx::isNumeric(*ptr)) {
+			++ptr;
+		}
+	}
+
+	return skipCommaWhitespace(ptr, end);
+}
+
+static const char* parseTransformComponent(const char* str, const char* end, bx::StringView* type, bx::StringView* value)
+{
+	SVG_CHECK(bx::isAlpha(*str), "Parse error: Excepted identifier");
+
+	const char* ptr = str;
+	while (ptr != end && bx::isAlpha(*ptr)) {
 		++ptr;
 	}
 
-	return ptr;
+	if (ptr == end) {
+		SVG_CHECK(false, "Parse error: Transformation component ended early");
+		return nullptr;
+	}
+
+	type->set(str, (int32_t)(ptr - str));
+
+	ptr = skipWhitespace(ptr, end);
+	
+	if (*ptr != '(') {
+		SVG_CHECK(false, "Parse error: Expected '('");
+		return nullptr;
+	}
+
+	ptr = skipWhitespace(ptr + 1, end);
+
+	const char* valuePtr = ptr;
+
+	// Skip until closing parenthesis
+	while (ptr != end && *ptr != ')') {
+		++ptr;
+	}
+
+	if (ptr == end) {
+		SVG_CHECK(false, "Parse error: Couldn't find closing parenthesis");
+		return nullptr;
+	}
+	SVG_CHECK(*ptr == ')', "Parse error: Expected ')'");
+
+	const char* endPtr = ptr + 1;
+
+	// Walk back ptr to get a tight value string (without trailing whitespaces)
+	while (ptr != valuePtr && bx::isSpace(*ptr)) {
+		--ptr;
+	}
+
+	value->set(valuePtr, (int32_t)(ptr - valuePtr));
+
+	return endPtr;
 }
 
 static bool parseTransform(ParserState* parser, const bx::StringView& str, float* transform)
 {
 	BX_UNUSED(parser);
-	if (!bx::strCmp(str, "matrix", 6)) {
-		const char* ptr = str.getPtr() + 6;
-		const char* end = str.getTerm();
 
-		// Search for the opening parenthesis
-		while (ptr != end) {
-			char ch = *ptr++;
-			SVG_CHECK(bx::isSpace(ch) || ch == '(', "Invalid matrix format");
-			if (ch == '(') {
-				break;
-			}
+	const char* ptr = str.getPtr();
+	const char* end = str.getTerm();
+
+	transformIdentity(transform);
+	ptr = skipWhitespace(ptr, end);
+	while (ptr != end) {
+		bx::StringView type, value;
+		
+		ptr = parseTransformComponent(ptr, end, &type, &value);
+		if (!ptr) {
+			SVG_CHECK(false, "Parse error");
+			return false;
 		}
 
-		ptr = parseCoord(ptr, end, &transform[0]);
-		ptr = parseCoord(ptr, end, &transform[1]);
-		ptr = parseCoord(ptr, end, &transform[2]);
-		ptr = parseCoord(ptr, end, &transform[3]);
-		ptr = parseCoord(ptr, end, &transform[4]);
-		ptr = parseCoord(ptr, end, &transform[5]);
+		ptr = skipCommaWhitespace(ptr, end);
 
-		// At this point we should be at the closing parenthesis
-		SVG_CHECK(*ptr == ')', "Invalid matrix format");
-	} else {
-		SVG_WARN(false, "Unhandled transform value: %.*s", str.getLength(), str.getPtr());
+		// Parse the transform value.
+		const char* valuePtr = value.getPtr();
+		const char* valueEnd = value.getTerm();
+
+		float comp[6];
+		transformIdentity(&comp[0]);
+		if (!bx::strCmp(type, "matrix", 6)) {
+			valuePtr = parseCoord(valuePtr, valueEnd, &comp[0]);
+			valuePtr = parseCoord(valuePtr, valueEnd, &comp[1]);
+			valuePtr = parseCoord(valuePtr, valueEnd, &comp[2]);
+			valuePtr = parseCoord(valuePtr, valueEnd, &comp[3]);
+			valuePtr = parseCoord(valuePtr, valueEnd, &comp[4]);
+			valuePtr = parseCoord(valuePtr, valueEnd, &comp[5]);
+
+		} else if (!bx::strCmp(type, "translate", 9)) {
+			valuePtr = parseCoord(valuePtr, valueEnd, &comp[4]);
+			if (valuePtr != valueEnd) {
+				valuePtr = parseCoord(valuePtr, valueEnd, &comp[5]);
+			}
+		} else if (!bx::strCmp(type, "scale", 5)) {
+			valuePtr = parseCoord(valuePtr, valueEnd, &comp[0]);
+			if (valuePtr != valueEnd) {
+				valuePtr = parseCoord(valuePtr, valueEnd, &comp[3]);
+			} else {
+				comp[3] = comp[0];
+			}
+		} else if (!bx::strCmp(type, "rotate", 6)) {
+			float angle_deg;
+			valuePtr = parseCoord(valuePtr, valueEnd, &angle_deg);
+
+			const float angle_rad = bx::toRad(angle_deg);
+			const float cosAngle = bx::fcos(angle_rad);
+			const float sinAngle = bx::fsin(angle_rad);
+			comp[0] = cosAngle;
+			comp[1] = sinAngle;
+			comp[2] = -sinAngle;
+			comp[3] = cosAngle;
+
+			if (valuePtr != valueEnd) {
+				float cX, cY;
+				valuePtr = parseCoord(valuePtr, valueEnd, &cX);
+				valuePtr = parseCoord(valuePtr, valueEnd, &cY);
+
+				// translate(cX, cY) rotate() translate(-cX, -cY)
+				comp[4] = cX * (1.0f - cosAngle) + cY * sinAngle;
+				comp[5] = cY * (1.0f - cosAngle) - cX * sinAngle;
+			}
+		} else if (!bx::strCmp(type, "skewX", 5)) {
+			float angle_deg;
+			valuePtr = parseCoord(valuePtr, valueEnd, &angle_deg);
+			
+			const float angle_rad = bx::toRad(angle_deg);
+			comp[2] = bx::ftan(angle_rad);
+		} else if (!bx::strCmp(type, "skewY", 5)) {
+			float angle_deg;
+			valuePtr = parseCoord(valuePtr, valueEnd, &angle_deg);
+
+			const float angle_rad = bx::toRad(angle_deg);
+			comp[1] = bx::ftan(angle_rad);
+		} else {
+			SVG_WARN(false, "Unknown transform component %.*s(%.*s)", type.getLength(), type.getPtr(), value.getLength(), value.getPtr());
+			valuePtr = valueEnd;
+		}
+
+		SVG_WARN(valuePtr == valueEnd, "Incomplete transformation parsing");
+
+		transformMultiply(transform, comp);
 	}
 
 	return true;
@@ -547,6 +704,7 @@ bool pathFromString(Path* path, const bx::StringView& str)
 			lastX = firstX;
 			lastY = firstY;
 			// No data
+			ptr = skipCommaWhitespace(ptr, end);
 		} else if (lch == 'c') {
 			// CubicTo abs
 			PathCmd* cmd = pathAllocCmd(path, PathCmdType::CubicTo);
@@ -1213,7 +1371,7 @@ static bool parseTag_svg(ParserState* parser, Image* img)
 {
 	// Parse svg tag attributes...
 	bool err = false;
-	while (!parserDone(parser)) {
+	while (!parserDone(parser) && !err) {
 		if (parserExpectingChar(parser, '>')) {
 			break;
 		}
@@ -1221,31 +1379,30 @@ static bool parseTag_svg(ParserState* parser, Image* img)
 		bx::StringView name, value;
 		if (!parserGetAttribute(parser, &name, &value)) {
 			err = true;
-			break;
-		}
-
-		if (!bx::strCmp(name, "version", 7)) {
-			parseVersion(value, &img->m_VerMajor, &img->m_VerMinor);
-		} else if (!bx::strCmp(name, "baseProfile", 11)) {
-			if (!bx::strCmp(value, "full", 4)) {
-				img->m_BaseProfile = BaseProfile::Full;
-			} else if (!bx::strCmp(value, "basic", 5)) {
-				img->m_BaseProfile = BaseProfile::Basic;
-			} else if (!bx::strCmp(value, "tiny", 4)) {
-				img->m_BaseProfile = BaseProfile::Tiny;
-			} else {
-				// Unknown base profile. Ignore.
-				SVG_WARN(false, "Unknown baseProfile \"%.*s\"", value.getLength(), value.getPtr());
-			}
-		} else if (!bx::strCmp(name, "width", 5)) {
-			img->m_Width = (float)atof(value.getPtr());
-		} else if (!bx::strCmp(name, "height", 6)) {
-			img->m_Height = (float)atof(value.getPtr());
-		} else if (!bx::strCmp(name, "xmlns", 5)) {
-			// Ignore. This is here in order to shut up the trace message below.
 		} else {
-			// Unknown attribute. Ignore it (parser has already moved forward)
-			SVG_WARN(false, "Ignoring svg attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
+			if (!bx::strCmp(name, "version", 7)) {
+				parseVersion(value, &img->m_VerMajor, &img->m_VerMinor);
+			} else if (!bx::strCmp(name, "baseProfile", 11)) {
+				if (!bx::strCmp(value, "full", 4)) {
+					img->m_BaseProfile = BaseProfile::Full;
+				} else if (!bx::strCmp(value, "basic", 5)) {
+					img->m_BaseProfile = BaseProfile::Basic;
+				} else if (!bx::strCmp(value, "tiny", 4)) {
+					img->m_BaseProfile = BaseProfile::Tiny;
+				} else {
+					// Unknown base profile. Ignore.
+					SVG_WARN(false, "Unknown baseProfile \"%.*s\"", value.getLength(), value.getPtr());
+				}
+			} else if (!bx::strCmp(name, "width", 5)) {
+				img->m_Width = (float)atof(value.getPtr());
+			} else if (!bx::strCmp(name, "height", 6)) {
+				img->m_Height = (float)atof(value.getPtr());
+			} else if (!bx::strCmp(name, "xmlns", 5)) {
+				// Ignore. This is here in order to shut up the trace message below.
+			} else {
+				// Unknown attribute. Ignore it (parser has already moved forward)
+				SVG_WARN(false, "Ignoring svg attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
+			}
 		}
 	}
 
@@ -1259,12 +1416,12 @@ static bool parseTag_svg(ParserState* parser, Image* img)
 	defaultAttrs.m_StrokeMiterLimit = 4.0f;
 	defaultAttrs.m_StrokeOpacity = 1.0f;
 	defaultAttrs.m_StrokePaint.m_Type = PaintType::None;
-	defaultAttrs.m_StrokePaint.m_Color = 0x00000000; // Transparent
+	defaultAttrs.m_StrokePaint.m_ColorABGR = 0x00000000; // Transparent
 	defaultAttrs.m_StrokeLineCap = LineCap::Butt;
 	defaultAttrs.m_StrokeLineJoin = LineJoin::Miter;
 	defaultAttrs.m_FillOpacity = 1.0f;
 	defaultAttrs.m_FillPaint.m_Type = PaintType::None;
-	defaultAttrs.m_FillPaint.m_Color = 0x00000000;
+	defaultAttrs.m_FillPaint.m_ColorABGR = 0x00000000;
 	transformIdentity(&defaultAttrs.m_Transform[0]);
 	bx::snprintf(defaultAttrs.m_FontFamily, SSVG_CONFIG_FONT_FAMILY_MAX_LEN, "%s", "sans-serif");
 
@@ -1305,6 +1462,16 @@ Image* loadImage(const char* xmlStr)
 						break;
 					}
 					++parser.m_Ptr;
+				}
+
+				err = parserDone(&parser);
+			} else if (!bx::strCmp(tag, "!DOCTYPE", 8)) {
+				// Special case: Search for first '>'.
+				while (!parserDone(&parser)) {
+					char ch = *parser.m_Ptr++;
+					if (ch == '>') {
+						break;
+					}
 				}
 
 				err = parserDone(&parser);

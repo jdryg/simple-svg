@@ -196,6 +196,7 @@ struct Path
 	uint32_t m_Capacity;
 };
 
+// TODO: alignment-baseline
 struct Text
 {
 	char* m_String;
@@ -204,12 +205,14 @@ struct Text
 	TextAnchor::Enum m_Anchor;
 };
 
+// TODO: Gradients
+// TODO: Images (???)
 struct Paint
 {
 	PaintType::Enum m_Type;
 
 	union {
-		uint32_t m_Color;
+		uint32_t m_ColorABGR;
 	};
 };
 
