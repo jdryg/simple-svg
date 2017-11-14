@@ -19,7 +19,8 @@ struct SaveAttr
 		// Common combinations
 		Unique = Transform | ID,
 		Shape = Unique | Stroke | Fill,
-		All = Shape | Font
+		All = Shape | Font,
+		Text = Unique | Fill | Font | ConditionalPaints
 	};
 };
 
@@ -69,6 +70,22 @@ static const char* lineCapToString(LineCap::Enum cap)
 	SVG_WARN(false, "Unknown stroke-linecap value");
 
 	return "butt";
+}
+
+static const char* textAnchorToString(TextAnchor::Enum anchor)
+{
+	switch (anchor) {
+	case TextAnchor::Start:
+		return "start";
+	case TextAnchor::Middle:
+		return "middle";
+	case TextAnchor::End:
+		return "end";
+	}
+
+	SVG_WARN(false, "Unknown text-anchor value");
+
+	return "start";
 }
 
 static bool transformIsIdentity(const float* transform)
@@ -340,6 +357,15 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, uint32_t in
 			bx::writePrintf(writer, "/>\n");
 			break;
 		case ShapeType::Text:
+			bx::writePrintf(writer, "%*s<text ", indentation, "");
+			if (!writeShapeAttributes(writer, &shape->m_Attrs, SaveAttr::Text)) {
+				return false;
+			}
+			bx::writePrintf(writer, "x=\"%g\" y=\"%g\" text-anchor=\"%s\">%s</text>\n"
+				, shape->m_Text.x
+				, shape->m_Text.y
+				, textAnchorToString(shape->m_Text.m_Anchor)
+				, shape->m_Text.m_String);
 			break;
 		default:
 			SVG_WARN(false, "Unknown shape type");

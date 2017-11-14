@@ -76,7 +76,14 @@ bool testBuilder(const char* filename)
 	defaultAttrs.m_FillPaint.m_Type = ssvg::PaintType::None;
 	defaultAttrs.m_FillPaint.m_ColorABGR = 0x00000000;
 	ssvg::transformIdentity(&defaultAttrs.m_Transform[0]);
-	shapeAttrsSetFontFamily(&defaultAttrs, "sans-serif");
+
+	ssvg::ShapeAttributes textAttrs;
+	bx::memCopy(&textAttrs, &defaultAttrs, sizeof(ssvg::ShapeAttributes));
+	ssvg::shapeAttrsSetFontFamily(&textAttrs, "sans-serif");
+	textAttrs.m_FontSize = 20.0f;
+	textAttrs.m_FillPaint.m_Type = ssvg::PaintType::Color;
+	textAttrs.m_FillPaint.m_ColorABGR = 0xFF000000;
+	textAttrs.m_StrokePaint.m_Type = ssvg::PaintType::None;
 
 	ssvg::Image* img = ssvg::imageCreate();
 
@@ -94,6 +101,9 @@ bool testBuilder(const char* filename)
 		ssvg::pathLineTo(path, 10.0f, 10.0f);
 		ssvg::pathCubicTo(path, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 50.0f);
 		ssvg::pathClose(path);
+
+		// Text
+		ssvg::shapeListAddText(imgShapeList, &textAttrs, 200.0f, 50.0f, ssvg::TextAnchor::Start, "This is a test string");
 	}
 
 	// Add shapes to a group
