@@ -85,6 +85,9 @@
     <ClCompile Include="src\svg\svg_parser.cpp">
       <Filter>svg</Filter>
     </ClCompile>
+    <ClCompile Include="src\svg\svg_writer.cpp">
+      <Filter>svg</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\svg\svg.h">

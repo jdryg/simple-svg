@@ -165,6 +165,7 @@
     <ClCompile Include="src\svg\svg.cpp" />
     <ClCompile Include="src\svg\svg_builder.cpp" />
     <ClCompile Include="src\svg\svg_parser.cpp" />
+    <ClCompile Include="src\svg\svg_writer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bx\src\bx_p.h" />

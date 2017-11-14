@@ -47,6 +47,7 @@
 namespace bx
 {
 struct AllocatorI;
+struct WriterI;
 class StringView;
 }
 
@@ -262,6 +263,7 @@ struct Image
 void initLib(bx::AllocatorI* allocator, const ShapeAttributes* defaultAttrs);
 
 Image* imageLoad(const char* xmlStr);
+bool imageSave(const Image* img, bx::WriterI* writer);
 Image* imageCreate();
 void imageDestroy(Image* img);
 
@@ -283,6 +285,7 @@ PathCmd* pathAllocCommands(Path* path, uint32_t n);
 void pathShrinkToFit(Path* path);
 void pathFree(Path* path);
 bool pathFromString(Path* path, const bx::StringView& str);
+bool pathToString(const Path* path, bx::WriterI* writer);
 uint32_t pathMoveTo(Path* path, float x, float y);
 uint32_t pathLineTo(Path* path, float x, float y);
 uint32_t pathCubicTo(Path* path, float x1, float y1, float x2, float y2, float x, float y);
@@ -294,6 +297,7 @@ float* pointListAllocPoints(PointList* ptList, uint32_t n);
 void pointListShrinkToFit(PointList* ptList);
 void pointListFree(PointList* ptList);
 bool pointListFromString(PointList* ptList, const bx::StringView& str);
+bool pointListToString(const PointList* ptList, bx::WriterI* writer);
 
 void shapeAttrsSetID(ShapeAttributes* attrs, const bx::StringView& id);
 void shapeAttrsSetFontFamily(ShapeAttributes* attrs, const bx::StringView& fontFamily);

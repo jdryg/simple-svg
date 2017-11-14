@@ -97,8 +97,10 @@ uint32_t shapeListAddPolyline(ShapeList* shapeList, const ShapeAttributes* paren
 		return ~0u;
 	}
 
-	float* dstCoords = pointListAllocPoints(&polyline->m_PointList, numPoints);
-	bx::memCopy(dstCoords, coords, sizeof(float) * 2 * numPoints);
+	if (coords && numPoints) {
+		float* dstCoords = pointListAllocPoints(&polyline->m_PointList, numPoints);
+		bx::memCopy(dstCoords, coords, sizeof(float) * 2 * numPoints);
+	}
 
 	return shapeList->m_NumShapes - 1;
 }
@@ -110,8 +112,10 @@ uint32_t shapeListAddPolygon(ShapeList* shapeList, const ShapeAttributes* parent
 		return ~0u;
 	}
 
-	float* dstCoords = pointListAllocPoints(&polygon->m_PointList, numPoints);
-	bx::memCopy(dstCoords, coords, sizeof(float) * 2 * numPoints);
+	if (coords && numPoints) {
+		float* dstCoords = pointListAllocPoints(&polygon->m_PointList, numPoints);
+		bx::memCopy(dstCoords, coords, sizeof(float) * 2 * numPoints);
+	}
 
 	return shapeList->m_NumShapes - 1;
 }

@@ -61,19 +61,34 @@ bool testParser(const char* filename)
 	return true;
 }
 
-bool testBuilder()
+bool testBuilder(const char* filename)
 {
+	ssvg::ShapeAttributes defaultAttrs;
+	bx::memSet(&defaultAttrs, 0, sizeof(ssvg::ShapeAttributes));
+	defaultAttrs.m_StrokeWidth = 1.0f;
+	defaultAttrs.m_StrokeMiterLimit = 4.0f;
+	defaultAttrs.m_StrokeOpacity = 1.0f;
+	defaultAttrs.m_StrokePaint.m_Type = ssvg::PaintType::Color;
+	defaultAttrs.m_StrokePaint.m_ColorABGR = 0xFF000000; // Black
+	defaultAttrs.m_StrokeLineCap = ssvg::LineCap::Butt;
+	defaultAttrs.m_StrokeLineJoin = ssvg::LineJoin::Miter;
+	defaultAttrs.m_FillOpacity = 1.0f;
+	defaultAttrs.m_FillPaint.m_Type = ssvg::PaintType::None;
+	defaultAttrs.m_FillPaint.m_ColorABGR = 0x00000000;
+	ssvg::transformIdentity(&defaultAttrs.m_Transform[0]);
+	shapeAttrsSetFontFamily(&defaultAttrs, "sans-serif");
+
 	ssvg::Image* img = ssvg::imageCreate();
 
 	ssvg::ShapeList* imgShapeList = &img->m_ShapeList;
 
 	// Add shapes to the image shape list
 	{
-		uint32_t rectID = ssvg::shapeListAddRect(imgShapeList, nullptr, 100.0f, 100.0f, 200.0f, 200.0f, 0.0f, 0.0f);
-		uint32_t circleID = ssvg::shapeListAddCircle(imgShapeList, nullptr, 200.0f, 200.0f, 80.0f);
+		uint32_t rectID = ssvg::shapeListAddRect(imgShapeList, &defaultAttrs, 100.0f, 100.0f, 200.0f, 200.0f, 0.0f, 0.0f);
+		uint32_t circleID = ssvg::shapeListAddCircle(imgShapeList, &defaultAttrs, 200.0f, 200.0f, 80.0f);
 
 		// Path
-		uint32_t pathID = ssvg::shapeListAddPath(imgShapeList, nullptr, nullptr, 0);
+		uint32_t pathID = ssvg::shapeListAddPath(imgShapeList, &defaultAttrs, nullptr, 0);
 		ssvg::Path* path = &imgShapeList->m_Shapes[pathID].m_Path;
 		ssvg::pathMoveTo(path, 0.0f, 0.0f);
 		ssvg::pathLineTo(path, 10.0f, 10.0f);
@@ -83,14 +98,14 @@ bool testBuilder()
 
 	// Add shapes to a group
 	{
-		uint32_t groupID = ssvg::shapeListAddGroup(imgShapeList, nullptr, nullptr, 0);
+		uint32_t groupID = ssvg::shapeListAddGroup(imgShapeList, &defaultAttrs, nullptr, 0);
 
 		float groupTransform[6] = { 1.0f, 0.0f, 0.0f, 1.0f, 400.0f, 0.0f };
 		bx::memCopy(&imgShapeList->m_Shapes[groupID].m_Attrs.m_Transform[0], &groupTransform[0], sizeof(float) * 6);
 
 		ssvg::ShapeList* groupShapeList = &imgShapeList->m_Shapes[groupID].m_ShapeList;
-		uint32_t rectID = ssvg::shapeListAddRect(groupShapeList, nullptr, 100.0f, 100.0f, 200.0f, 200.0f, 0.0f, 0.0f);
-		uint32_t circleID = ssvg::shapeListAddCircle(groupShapeList, nullptr, 200.0f, 200.0f, 80.0f);
+		uint32_t rectID = ssvg::shapeListAddRect(groupShapeList, &defaultAttrs, 100.0f, 100.0f, 200.0f, 200.0f, 0.0f, 0.0f);
+		uint32_t circleID = ssvg::shapeListAddCircle(groupShapeList, &defaultAttrs, 200.0f, 200.0f, 80.0f);
 	}
 
 	// Add shapes to a group (alt version)
@@ -98,11 +113,11 @@ bool testBuilder()
 		// Create a temporary shape list
 		ssvg::ShapeList tempShapeList;
 		bx::memSet(&tempShapeList, 0, sizeof(ssvg::ShapeList));
-		uint32_t rectID = ssvg::shapeListAddRect(&tempShapeList, nullptr, 100.0f, 100.0f, 200.0f, 200.0f, 0.0f, 0.0f);
-		uint32_t circleID = ssvg::shapeListAddCircle(&tempShapeList, nullptr, 200.0f, 200.0f, 80.0f);
+		uint32_t rectID = ssvg::shapeListAddRect(&tempShapeList, &defaultAttrs, 100.0f, 100.0f, 200.0f, 200.0f, 0.0f, 0.0f);
+		uint32_t circleID = ssvg::shapeListAddCircle(&tempShapeList, &defaultAttrs, 200.0f, 200.0f, 80.0f);
 
 		// Add a new group using the shapes from the temp shape list
-		uint32_t groupID = ssvg::shapeListAddGroup(imgShapeList, nullptr, tempShapeList.m_Shapes, tempShapeList.m_NumShapes);
+		uint32_t groupID = ssvg::shapeListAddGroup(imgShapeList, &defaultAttrs, tempShapeList.m_Shapes, tempShapeList.m_NumShapes);
 
 		// Free the temp shape list
 		ssvg::shapeListFree(&tempShapeList);
@@ -112,7 +127,52 @@ bool testBuilder()
 		bx::memCopy(&imgShapeList->m_Shapes[groupID].m_Attrs.m_Transform[0], &groupTransform[0], sizeof(float) * 6);
 	}
 
+	bx::Error err;
+	bx::FileWriter fileWriter;
+	if (!fileWriter.open(bx::FilePath(filename), false, &err)) {
+		printf("Failed to open file for writing.\n");
+		return false;
+	}
+
+	ssvg::imageSave(img, &fileWriter);
+
+	fileWriter.close();
+
 	ssvg::imageDestroy(img);
+
+	return true;
+}
+
+bool testRoundTrip(const char* input, const char* output)
+{
+	printf("Loading \"%s\"...\n", input);
+
+	uint8_t* svgFileBuffer = loadFile(bx::FilePath(input));
+	if (!svgFileBuffer) {
+		printf("(x) Failed to load svg file.\n");
+		return false;
+	}
+
+	ssvg::Image* img = ssvg::imageLoad((char*)svgFileBuffer);
+	if (!img) {
+		printf("(x) Failed to parse svg file.\n");
+		return false;
+	}
+
+	bx::Error err;
+	bx::FileWriter fileWriter;
+	if (!fileWriter.open(bx::FilePath(output), false, &err)) {
+		printf("Failed to open file for writing.\n");
+		return false;
+	}
+
+	ssvg::imageSave(img, &fileWriter);
+
+	fileWriter.close();
+
+	ssvg::imageDestroy(img);
+
+	BX_FREE(&g_Allocator, svgFileBuffer);
 
 	return true;
 }
@@ -122,13 +182,13 @@ int main()
 	ssvg::ShapeAttributes defaultAttrs;
 	bx::memSet(&defaultAttrs, 0, sizeof(ssvg::ShapeAttributes));
 	defaultAttrs.m_StrokeWidth = 1.0f;
-	defaultAttrs.m_StrokeMiterLimit = 10.0f;
+	defaultAttrs.m_StrokeMiterLimit = 4.0f;
 	defaultAttrs.m_StrokeOpacity = 1.0f;
-	defaultAttrs.m_StrokePaint.m_Type = ssvg::PaintType::Color;
-	defaultAttrs.m_StrokePaint.m_ColorABGR = 0xFF000000; // Black
+	defaultAttrs.m_StrokePaint.m_Type = ssvg::PaintType::None;
+	defaultAttrs.m_StrokePaint.m_ColorABGR = 0x00000000;
 	defaultAttrs.m_StrokeLineCap = ssvg::LineCap::Butt;
 	defaultAttrs.m_StrokeLineJoin = ssvg::LineJoin::Miter;
-	defaultAttrs.m_FillOpacity = 0.0f;
+	defaultAttrs.m_FillOpacity = 1.0f;
 	defaultAttrs.m_FillPaint.m_Type = ssvg::PaintType::None;
 	defaultAttrs.m_FillPaint.m_ColorABGR = 0x00000000;
 	ssvg::transformIdentity(&defaultAttrs.m_Transform[0]);
@@ -137,8 +197,8 @@ int main()
 	ssvg::initLib(&g_Allocator, &defaultAttrs);
 
 	testParser("./Ghostscript_Tiger.svg");
-	
-	testBuilder();
+	testBuilder("./output.svg");
+	testRoundTrip("./Ghostscript_Tiger.svg", "./tiger.svg");
 
 	return 0;
 }

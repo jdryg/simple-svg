@@ -45,12 +45,16 @@ Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const Sha
 	Shape* shape = &shapeList->m_Shapes[shapeList->m_NumShapes++];
 	shape->m_Type = type;
 	
-	// Copy parent attributes (except from id and transform)
+	// Copy parent attributes
 	if (parentAttrs) {
 		bx::memCopy(&shape->m_Attrs, parentAttrs, sizeof(ShapeAttributes));
-		shape->m_Attrs.m_ID[0] = '\0';
-		transformIdentity(&shape->m_Attrs.m_Transform[0]);
+	} else {
+		bx::memCopy(&shape->m_Attrs, &s_DefaultAttrs, sizeof(ShapeAttributes));
 	}
+	
+	// Reset id and transform
+	shape->m_Attrs.m_ID[0] = '\0';
+	transformIdentity(&shape->m_Attrs.m_Transform[0]);
 
 	return shape;
 }

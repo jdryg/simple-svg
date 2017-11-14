@@ -102,7 +102,6 @@ inline bool parserExpectingString(ParserState* parser, const char* str, uint32_t
 	return false;
 }
 
-
 // Skips the currently entered tag by counting > and <.
 static void parserSkipTag(ParserState* parser)
 {
