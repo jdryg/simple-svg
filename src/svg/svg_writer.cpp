@@ -114,7 +114,11 @@ bool pointListToString(const PointList* pointList, bx::WriterI* writer)
 	const uint32_t numPoints = pointList->m_NumPoints;
 	for (uint32_t i = 0; i < numPoints; ++i) {
 		const float* coords = &pointList->m_Coords[i * 2];
+#if SSVG_CONFIG_MINIFY_PATHS
 		bx::writePrintf(writer, "%g,%g ", coords[0], coords[1]);
+#else
+		bx::writePrintf(writer, "%g, %g ", coords[0], coords[1]);
+#endif
 	}
 
 	return true;
@@ -130,22 +134,42 @@ bool pathToString(const Path* path, bx::WriterI* writer)
 		const float* data = &cmd->m_Data[0];
 		switch (type) {
 		case PathCmdType::MoveTo:
+#if SSVG_CONFIG_MINIFY_PATHS
+			bx::writePrintf(writer, "M%g %g", data[0], data[1]);
+#else
 			bx::writePrintf(writer, "M %g %g ", data[0], data[1]);
+#endif
 			break;
 		case PathCmdType::LineTo:
+#if SSVG_CONFIG_MINIFY_PATHS
+			bx::writePrintf(writer, "L%g %g", data[0], data[1]);
+#else
 			bx::writePrintf(writer, "L %g %g ", data[0], data[1]);
+#endif
 			break;
 		case PathCmdType::CubicTo:
+#if SSVG_CONFIG_MINIFY_PATHS
+			bx::writePrintf(writer, "C%g %g,%g %g,%g %g", data[0], data[1], data[2], data[3], data[4], data[5]);
+#else
 			bx::writePrintf(writer, "C %g %g, %g %g, %g %g ", data[0], data[1], data[2], data[3], data[4], data[5]);
+#endif
 			break;
 		case PathCmdType::QuadraticTo:
+#if SSVG_CONFIG_MINIFY_PATHS
+			bx::writePrintf(writer, "Q%g %g,%g %g", data[0], data[1], data[2], data[3]);
+#else
 			bx::writePrintf(writer, "Q %g %g, %g %g ", data[0], data[1], data[2], data[3]);
+#endif
 			break;
 		case PathCmdType::ArcTo:
+#if SSVG_CONFIG_MINIFY_PATHS
+			bx::writePrintf(writer, "A%g %g %g %d %d %g %g", data[0], data[1], data[2], (int)data[3], (int)data[4], data[5], data[6]);
+#else
 			bx::writePrintf(writer, "A %g %g %g %d %d %g %g ", data[0], data[1], data[2], (int)data[3], (int)data[4], data[5], data[6]);
+#endif
 			break;
 		case PathCmdType::ClosePath:
-			bx::writePrintf(writer, "Z ");
+			bx::writePrintf(writer, "Z");
 			break;
 		default:
 			SVG_WARN(false, "Unknown path command");
@@ -418,6 +442,9 @@ bool imageSave(const Image* img, bx::WriterI* writer)
 	}
 	if (img->m_BaseProfile != BaseProfile::None) {
 		bx::writePrintf(writer, "baseProfile=\"%s\" ", baseProfileToString(img->m_BaseProfile));
+	}
+	if (img->m_ViewBox[2] > 0.0f && img->m_ViewBox[3] > 0.0f) {
+		bx::writePrintf(writer, "viewBox=\"%g %g %g %g\" ", img->m_ViewBox[0], img->m_ViewBox[1], img->m_ViewBox[2], img->m_ViewBox[3]);
 	}
 	bx::writePrintf(writer, "xmlns=\"http://www.w3.org/2000/svg\">\n");
 

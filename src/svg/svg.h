@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 
-#ifndef SVG_CONFIG_DEBUG
-#	define SVG_CONFIG_DEBUG 0
+#ifndef SSVG_CONFIG_DEBUG
+#	define SSVG_CONFIG_DEBUG 0
 #endif
 
 // NOTE: Those 2 are used as the sizes of m_ID and m_FontFamily in ShapeAttributes structs.
@@ -18,7 +18,11 @@
 #	define SSVG_CONFIG_FONT_FAMILY_MAX_LEN  16
 #endif
 
-#if SVG_CONFIG_DEBUG
+#ifndef SSVG_CONFIG_MINIFY_PATHS
+#	define SSVG_CONFIG_MINIFY_PATHS 1
+#endif
+
+#if SSVG_CONFIG_DEBUG
 #define SVG_TRACE(_format, ...) \
 	do { \
 		bx::debugPrintf(BX_FILE_LINE_LITERAL "SimpleSVG " _format "\n", ##__VA_ARGS__); \
@@ -255,6 +259,7 @@ struct Image
 	ShapeList m_ShapeList;
 	float m_Width;
 	float m_Height;
+	float m_ViewBox[4];
 	BaseProfile::Enum m_BaseProfile;
 	uint16_t m_VerMajor;
 	uint16_t m_VerMinor;

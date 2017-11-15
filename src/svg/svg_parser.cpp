@@ -342,6 +342,19 @@ static const char* parseCoord(const char* str, const char* end, float* coord)
 	return skipCommaWhitespace(ptr, end);
 }
 
+static bool parseViewBox(const bx::StringView& str, float* viewBox)
+{
+	const char* ptr = str.getPtr();
+	const char* end = str.getTerm();
+
+	ptr = parseCoord(ptr, end, &viewBox[0]);
+	ptr = parseCoord(ptr, end, &viewBox[1]);
+	ptr = parseCoord(ptr, end, &viewBox[2]);
+	ptr = parseCoord(ptr, end, &viewBox[3]);
+
+	return true;
+}
+
 // Scans str and extracts type and value. Expected format is: 
 //    type '(' value ')' 
 // where type is an identifier and value is any kind of text
@@ -1256,6 +1269,8 @@ static bool parseTag_svg(ParserState* parser, Image* img)
 				img->m_Width = (float)atof(value.getPtr());
 			} else if (!bx::strCmp(name, "height", 6)) {
 				img->m_Height = (float)atof(value.getPtr());
+			} else if (!bx::strCmp(name, "viewBox", 7)) {
+				parseViewBox(value, &img->m_ViewBox[0]);
 			} else if (!bx::strCmp(name, "xmlns", 5)) {
 				// Ignore. This is here in order to shut up the trace message below.
 			} else {

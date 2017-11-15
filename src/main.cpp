@@ -155,7 +155,7 @@ bool testBuilder(const char* filename)
 
 bool testRoundTrip(const char* input, const char* output)
 {
-	printf("Loading \"%s\"...\n", input);
+	printf("Converting \"%s\" to \"%s\"...\n", input, output);
 
 	uint8_t* svgFileBuffer = loadFile(bx::FilePath(input));
 	if (!svgFileBuffer) {
@@ -209,6 +209,8 @@ int main()
 	testParser("./Ghostscript_Tiger.svg");
 	testBuilder("./output.svg");
 	testRoundTrip("./Ghostscript_Tiger.svg", "./tiger.svg");
+
+	testParser("./tiger.svg");
 
 	return 0;
 }
