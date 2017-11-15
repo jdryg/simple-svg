@@ -126,6 +126,8 @@ bool pointListToString(const PointList* pointList, bx::WriterI* writer)
 
 bool pathToString(const Path* path, bx::WriterI* writer)
 {
+	// TODO: Extra minification can be achieved by using relative commands 
+	// (because adjacent commands/coords are usually close to the last position).
 	const uint32_t numCommands = path->m_NumCommands;
 	for (uint32_t iCmd = 0; iCmd < numCommands; ++iCmd) {
 		const PathCmd* cmd = &path->m_Commands[iCmd];
