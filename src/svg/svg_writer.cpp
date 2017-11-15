@@ -4,6 +4,8 @@
 
 namespace ssvg
 {
+extern ShapeAttributes s_DefaultAttrs;
+
 struct SaveAttr
 {
 	enum Enum : uint32_t
@@ -154,7 +156,7 @@ bool pathToString(const Path* path, bx::WriterI* writer)
 	return true;
 }
 
-static bool writeShapeAttributes(bx::WriterI* writer, const ShapeAttributes* attrs, uint32_t flags)
+static bool writeShapeAttributes(bx::WriterI* writer, const ShapeAttributes* attrs, const ShapeAttributes* parentAttrs, uint32_t flags)
 {
 	const bool conditionalPaints = (flags & SaveAttr::ConditionalPaints) != 0;
 
@@ -174,58 +176,85 @@ static bool writeShapeAttributes(bx::WriterI* writer, const ShapeAttributes* att
 
 	if ((flags & SaveAttr::Stroke) != 0) {
 		const PaintType::Enum strokeType = attrs->m_StrokePaint.m_Type;
+		const PaintType::Enum parentStrokeType = parentAttrs->m_StrokePaint.m_Type;
 
-		if (strokeType == PaintType::None) {
+		if (strokeType == PaintType::None && parentStrokeType != PaintType::None) {
 			bx::writePrintf(writer, "stroke=\"none\" ");
-		} else if (strokeType == PaintType::Transparent) {
+		} else if (strokeType == PaintType::Transparent && parentStrokeType != PaintType::Transparent) {
 			bx::writePrintf(writer, "stroke=\"transparent\" ");
 		} else if (strokeType == PaintType::Color) {
-			char hexColor[32];
-			colorToHexString(hexColor, 32, attrs->m_StrokePaint.m_ColorABGR);
-			bx::writePrintf(writer, "stroke=\"%s\" ", hexColor);
+			const uint32_t abgr = attrs->m_StrokePaint.m_ColorABGR;
+			if (parentStrokeType != PaintType::Color || (parentStrokeType == PaintType::Color && parentAttrs->m_StrokePaint.m_ColorABGR != abgr)) {
+				char hexColor[32];
+				colorToHexString(hexColor, 32, abgr);
+				bx::writePrintf(writer, "stroke=\"%s\" ", hexColor);
+			}
 		}
 
 		const bool saveExtra = !conditionalPaints || (conditionalPaints && strokeType != PaintType::None && strokeType != PaintType::Transparent);
 		if (saveExtra) {
-			if (attrs->m_StrokeMiterLimit >= 1.0f && attrs->m_StrokeMiterLimit != 4.0f) {
-				bx::writePrintf(writer, "stroke-miterlimit=\"%g\" ", attrs->m_StrokeMiterLimit);
+			const float miterLimit = attrs->m_StrokeMiterLimit;
+			if (miterLimit >= 1.0f && parentAttrs->m_StrokeMiterLimit != miterLimit) {
+				bx::writePrintf(writer, "stroke-miterlimit=\"%g\" ", miterLimit);
 			}
 
-			// TODO: Check if there are any invalid values for those.
-			bx::writePrintf(writer, "stroke-width=\"%g\" ", attrs->m_StrokeWidth);
-			bx::writePrintf(writer, "stroke-opacity=\"%g\" ", attrs->m_StrokeOpacity);
-			bx::writePrintf(writer, "stroke-linejoin=\"%s\" ", lineJoinToString(attrs->m_StrokeLineJoin));
-			bx::writePrintf(writer, "stroke-linecap=\"%s\" ", lineCapToString(attrs->m_StrokeLineCap));
+			const float width = attrs->m_StrokeWidth;
+			if (width >= 0.0f && parentAttrs->m_StrokeWidth != width) {
+				bx::writePrintf(writer, "stroke-width=\"%g\" ", width);
+			}
+
+			const float opacity = attrs->m_StrokeOpacity;
+			if (opacity >= 0.0f && opacity <= 1.0f && parentAttrs->m_StrokeOpacity != opacity) {
+				bx::writePrintf(writer, "stroke-opacity=\"%g\" ", opacity);
+			}
+
+			const LineJoin::Enum lineJoin = attrs->m_StrokeLineJoin;
+			if (lineJoin != parentAttrs->m_StrokeLineJoin) {
+				bx::writePrintf(writer, "stroke-linejoin=\"%s\" ", lineJoinToString(lineJoin));
+			}
+
+			const LineCap::Enum lineCap = attrs->m_StrokeLineCap;
+			if (lineCap != parentAttrs->m_StrokeLineCap) {
+				bx::writePrintf(writer, "stroke-linecap=\"%s\" ", lineCapToString(lineCap));
+			}
 		}
 	}
 
 	if ((flags & SaveAttr::Fill) != 0) {
 		const PaintType::Enum fillType = attrs->m_FillPaint.m_Type;
+		const PaintType::Enum parentFillType = parentAttrs->m_FillPaint.m_Type;
 
-		if (fillType == PaintType::None) {
+		if (fillType == PaintType::None && parentFillType != PaintType::None) {
 			bx::writePrintf(writer, "fill=\"none\" ");
-		} else if (fillType == PaintType::Transparent) {
+		} else if (fillType == PaintType::Transparent && parentFillType != PaintType::Transparent) {
 			bx::writePrintf(writer, "fill=\"transparent\" ");
 		} else if (fillType == PaintType::Color) {
-			char hexColor[32];
-			colorToHexString(hexColor, 32, attrs->m_FillPaint.m_ColorABGR);
-			bx::writePrintf(writer, "fill=\"%s\" ", hexColor);
+			const uint32_t abgr = attrs->m_FillPaint.m_ColorABGR;
+			if (parentFillType != PaintType::Color || (parentFillType == PaintType::Color && parentAttrs->m_FillPaint.m_ColorABGR != abgr)) {
+				char hexColor[32];
+				colorToHexString(hexColor, 32, abgr);
+				bx::writePrintf(writer, "fill=\"%s\" ", hexColor);
+			}
 		}
 
 		const bool saveExtra = !conditionalPaints || (conditionalPaints && fillType != PaintType::None && fillType != PaintType::Transparent);
 		if (saveExtra) {
-			bx::writePrintf(writer, "fill-opacity=\"%g\" "
-				, attrs->m_FillOpacity);
+			const float opacity = attrs->m_FillOpacity;
+			if (opacity >= 0.0f && opacity <= 1.0f && opacity != parentAttrs->m_FillOpacity) {
+				bx::writePrintf(writer, "fill-opacity=\"%g\" ", opacity);
+			}
 		}
 	}
 
 	if ((flags & SaveAttr::Font) != 0) {
-		if (attrs->m_FontFamily[0] != '\0') {
-			bx::writePrintf(writer, "font-family=\"%s\" ", attrs->m_FontFamily);
+		const char* fontFamily = attrs->m_FontFamily;
+		if (fontFamily[0] != '\0' && bx::strCmp(fontFamily, parentAttrs->m_FontFamily)) {
+			bx::writePrintf(writer, "font-family=\"%s\" ", fontFamily);
 		}
 
-		if (attrs->m_FontSize != 0.0f) {
-			bx::writePrintf(writer, "font-size=\"%g\" ", attrs->m_FontSize);
+		const float fontSize = attrs->m_FontSize;
+		if (fontSize > 0.0f && fontSize != parentAttrs->m_FontSize) {
+			bx::writePrintf(writer, "font-size=\"%g\" ", fontSize);
 		}
 	}
 
@@ -254,7 +283,7 @@ bool writePath(bx::WriterI* writer, const Path* path)
 	return true;
 }
 
-bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, uint32_t indentation)
+bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, const ShapeAttributes* parentAttrs, uint32_t indentation)
 {
 	const uint32_t numShapes = shapeList->m_NumShapes;
 	for (uint32_t iShape = 0; iShape < numShapes; ++iShape) {
@@ -264,12 +293,12 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, uint32_t in
 		switch (shapeType) {
 		case ShapeType::Group:
 			bx::writePrintf(writer, "%*s<g ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, SaveAttr::All)) {
+			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::All)) {
 				return false;
 			}
 			bx::writePrintf(writer, ">\n");
 			
-			if (!writeShapeList(writer, &shape->m_ShapeList, indentation + 2)) {
+			if (!writeShapeList(writer, &shape->m_ShapeList, &shape->m_Attrs, indentation + 2)) {
 				return false;
 			}
 
@@ -277,7 +306,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, uint32_t in
 			break;
 		case ShapeType::Rect:
 			bx::writePrintf(writer, "%*s<rect ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
+			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
 				return false;
 			}
 			bx::writePrintf(writer, "x=\"%g\" y=\"%g\" width=\"%g\" height=\"%g\" "
@@ -296,7 +325,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, uint32_t in
 			break;
 		case ShapeType::Circle:
 			bx::writePrintf(writer, "%*s<circle ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
+			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
 				return false;
 			}
 			bx::writePrintf(writer, "cx=\"%g\" cy=\"%g\" r=\"%g\" />\n"
@@ -306,7 +335,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, uint32_t in
 			break;
 		case ShapeType::Ellipse:
 			bx::writePrintf(writer, "%*s<ellipse ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
+			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
 				return false;
 			}
 			bx::writePrintf(writer, "cx=\"%g\" cy=\"%g\" rx=\"%g\" ry=\"%g\" />\n"
@@ -317,7 +346,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, uint32_t in
 			break;
 		case ShapeType::Line:
 			bx::writePrintf(writer, "%*s<line ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
+			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
 				return false;
 			}
 			bx::writePrintf(writer, "x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" />\n"
@@ -328,7 +357,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, uint32_t in
 			break;
 		case ShapeType::Polyline:
 			bx::writePrintf(writer, "%*s<polyline ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
+			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
 				return false;
 			}
 			if (!writePointList(writer, &shape->m_PointList)) {
@@ -338,7 +367,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, uint32_t in
 			break;
 		case ShapeType::Polygon:
 			bx::writePrintf(writer, "%*s<polygon ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
+			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
 				return false;
 			}
 			if (!writePointList(writer, &shape->m_PointList)) {
@@ -348,7 +377,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, uint32_t in
 			break;
 		case ShapeType::Path:
 			bx::writePrintf(writer, "%*s<path ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
+			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
 				return false;
 			}
 			if (!writePath(writer, &shape->m_Path)) {
@@ -358,7 +387,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, uint32_t in
 			break;
 		case ShapeType::Text:
 			bx::writePrintf(writer, "%*s<text ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, SaveAttr::Text)) {
+			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::Text)) {
 				return false;
 			}
 			bx::writePrintf(writer, "x=\"%g\" y=\"%g\" text-anchor=\"%s\">%s</text>\n"
@@ -392,7 +421,7 @@ bool imageSave(const Image* img, bx::WriterI* writer)
 	}
 	bx::writePrintf(writer, "xmlns=\"http://www.w3.org/2000/svg\">\n");
 
-	if (!writeShapeList(writer, &img->m_ShapeList, 1)) {
+	if (!writeShapeList(writer, &img->m_ShapeList, &s_DefaultAttrs, 1)) {
 		return false;
 	}
 
