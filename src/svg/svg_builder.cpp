@@ -4,6 +4,20 @@
 
 namespace ssvg
 {
+uint32_t shapeListAddShape(ShapeList* shapeList, const Shape* shape)
+{
+	SVG_CHECK(shape != nullptr, "Call shapeListAllocShape() instead");
+
+	Shape* newShape = shapeListAllocShape(shapeList, shape->m_Type, nullptr);
+	if (!newShape) {
+		return ~0u;
+	}
+	
+	shapeCopy(newShape, shape, true);
+
+	return shapeList->m_NumShapes - 1;
+}
+
 uint32_t shapeListAddGroup(ShapeList* shapeList, const ShapeAttributes* parentAttrs, const Shape* children, uint32_t numChildren)
 {
 	Shape* group = shapeListAllocShape(shapeList, ShapeType::Group, parentAttrs);
@@ -233,6 +247,8 @@ uint32_t pathArcTo(Path* path, float rx, float ry, float xAxisRotation, int larg
 uint32_t pathClose(Path* path)
 {
 	PathCmd* cmd = pathAllocCommand(path, PathCmdType::ClosePath);
+
+	BX_UNUSED(cmd);
 
 	return path->m_NumCommands - 1;
 }

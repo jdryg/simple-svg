@@ -15,6 +15,16 @@ void transformIdentity(float* transform)
 	transform[3] = 1.0f;
 }
 
+void transformTranslation(float* transform, float x, float y)
+{
+	transform[0] = 1.0f;
+	transform[1] = 0.0f;
+	transform[2] = 0.0f;
+	transform[3] = 1.0f;
+	transform[4] = x;
+	transform[5] = y;
+}
+
 // a = a * b;
 void transformMultiply(float* a, const float* b)
 {
@@ -77,6 +87,12 @@ void shapeListFree(ShapeList* shapeList)
 {
 	SVG_CHECK(shapeList->m_NumShapes <= shapeList->m_Capacity, "Trying to free a read-only shape list?");
 
+	const uint32_t n = shapeList->m_NumShapes;
+	for (uint32_t i = 0; i < n; ++i) {
+		Shape* shape = &shapeList->m_Shapes[i];
+		shapeFree(shape);
+	}
+
 	BX_FREE(s_Allocator, shapeList->m_Shapes);
 	shapeList->m_Shapes = nullptr;
 	shapeList->m_Capacity = 0;
@@ -93,6 +109,70 @@ void shapeListReserve(ShapeList* shapeList, uint32_t capacity)
 	shapeList->m_Capacity = capacity;
 	shapeList->m_Shapes = (Shape*)BX_REALLOC(s_Allocator, shapeList->m_Shapes, sizeof(Shape) * shapeList->m_Capacity);
 	bx::memSet(&shapeList->m_Shapes[oldCapacity], 0, sizeof(Shape) * (shapeList->m_Capacity - oldCapacity));
+}
+
+uint32_t shapeListMoveShapeToBack(ShapeList* shapeList, uint32_t shapeID)
+{
+	SVG_CHECK(shapeID < shapeList->m_NumShapes, "Invalid shape ID");
+	if (shapeID == 0 || shapeList->m_NumShapes <= 1) {
+		return shapeID;
+	}
+
+	Shape tmp;
+	bx::memCopy(&tmp, &shapeList->m_Shapes[shapeID - 1], sizeof(Shape));
+	bx::memCopy(&shapeList->m_Shapes[shapeID - 1], &shapeList->m_Shapes[shapeID], sizeof(Shape));
+	bx::memCopy(&shapeList->m_Shapes[shapeID], &tmp, sizeof(Shape));
+
+	return shapeID - 1;
+}
+
+uint32_t shapeListMoveShapeToFront(ShapeList* shapeList, uint32_t shapeID)
+{
+	SVG_CHECK(shapeID < shapeList->m_NumShapes, "Invalid shape ID");
+	if (shapeID == shapeList->m_NumShapes - 1) {
+		return shapeID;
+	}
+
+	Shape tmp;
+	bx::memCopy(&tmp, &shapeList->m_Shapes[shapeID + 1], sizeof(Shape));
+	bx::memCopy(&shapeList->m_Shapes[shapeID + 1], &shapeList->m_Shapes[shapeID], sizeof(Shape));
+	bx::memCopy(&shapeList->m_Shapes[shapeID], &tmp, sizeof(Shape));
+
+	return shapeID + 1;
+}
+
+void shapeListDeleteShape(ShapeList* shapeList, uint32_t shapeID)
+{
+	SVG_CHECK(shapeID < shapeList->m_NumShapes, "Invalid shape ID");
+
+	shapeFree(&shapeList->m_Shapes[shapeID]);
+
+	const uint32_t numShapesToMove = shapeList->m_NumShapes - 1 - shapeID;
+	if (numShapesToMove != 0) {
+		bx::memMove(&shapeList->m_Shapes[shapeID], &shapeList->m_Shapes[shapeID + 1], sizeof(Shape) * numShapesToMove);
+	}
+
+	shapeList->m_NumShapes--;
+}
+
+void shapeFree(Shape* shape)
+{
+	switch (shape->m_Type) {
+	case ShapeType::Group:
+		shapeListFree(&shape->m_ShapeList);
+		break;
+	case ShapeType::Path:
+		pathFree(&shape->m_Path);
+		break;
+	case ShapeType::Polygon:
+	case ShapeType::Polyline:
+		pointListFree(&shape->m_PointList);
+		break;
+	case ShapeType::Text:
+		BX_FREE(s_Allocator, shape->m_Text.m_String);
+		shape->m_Text.m_String = nullptr;
+		break;
+	}
 }
 
 PathCmd* pathAllocCommands(Path* path, uint32_t n)
@@ -202,34 +282,9 @@ Image* imageCreate()
 	return img;
 }
 
-void destroyShapeList(ShapeList* shapeList)
-{
-	const uint32_t n = shapeList->m_NumShapes;
-	for (uint32_t i = 0; i < n; ++i) {
-		Shape* shape = &shapeList->m_Shapes[i];
-		switch (shape->m_Type) {
-		case ShapeType::Group:
-			destroyShapeList(&shape->m_ShapeList);
-			break;
-		case ShapeType::Path:
-			pathFree(&shape->m_Path);
-			break;
-		case ShapeType::Polygon:
-		case ShapeType::Polyline:
-			pointListFree(&shape->m_PointList);
-			break;
-		case ShapeType::Text:
-			BX_FREE(s_Allocator, shape->m_Text.m_String);
-			break;
-		}
-	}
-
-	shapeListFree(shapeList);
-}
-
 void imageDestroy(Image* img)
 {
-	destroyShapeList(&img->m_ShapeList);
+	shapeListFree(&img->m_ShapeList);
 	BX_FREE(s_Allocator, img);
 }
 

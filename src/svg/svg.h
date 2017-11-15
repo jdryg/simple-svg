@@ -275,6 +275,7 @@ void imageDestroy(Image* img);
 Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const ShapeAttributes* parentAttrs);
 void shapeListShrinkToFit(ShapeList* shapeList);
 void shapeListFree(ShapeList* shapeList);
+uint32_t shapeListAddShape(ShapeList* shapeList, const Shape* shape);
 uint32_t shapeListAddGroup(ShapeList* shapeList, const ShapeAttributes* parentAttrs, const Shape* children, uint32_t numChildren);
 uint32_t shapeListAddRect(ShapeList* shapeList, const ShapeAttributes* parentAttrs, float x, float y, float w, float h, float rx, float ry);
 uint32_t shapeListAddCircle(ShapeList* shapeList, const ShapeAttributes* parentAttrs, float x, float y, float r);
@@ -284,6 +285,9 @@ uint32_t shapeListAddPolyline(ShapeList* shapeList, const ShapeAttributes* paren
 uint32_t shapeListAddPolygon(ShapeList* shapeList, const ShapeAttributes* parentAttrs, const float* coords, uint32_t numPoints);
 uint32_t shapeListAddPath(ShapeList* shapeList, const ShapeAttributes* parentAttrs, const PathCmd* pathCommands, uint32_t commands);
 uint32_t shapeListAddText(ShapeList* shapeList, const ShapeAttributes* parentAttrs, float x, float y, TextAnchor::Enum anchor, const char* text);
+uint32_t shapeListMoveShapeToBack(ShapeList* shapeList, uint32_t shapeID);
+uint32_t shapeListMoveShapeToFront(ShapeList* shapeList, uint32_t shapeID);
+void shapeListDeleteShape(ShapeList* shapeList, uint32_t shapeID);
 
 PathCmd* pathAllocCommand(Path* path, PathCmdType::Enum type);
 PathCmd* pathAllocCommands(Path* path, uint32_t n);
@@ -307,9 +311,11 @@ bool pointListToString(const PointList* ptList, bx::WriterI* writer);
 void shapeAttrsSetID(ShapeAttributes* attrs, const bx::StringView& id);
 void shapeAttrsSetFontFamily(ShapeAttributes* attrs, const bx::StringView& fontFamily);
 
+void shapeFree(Shape* shape);
 bool shapeCopy(Shape* dst, const Shape* src, bool copyAttrs = true);
 
 void transformIdentity(float* transform);
+void transformTranslation(float* transform, float x, float y);
 void transformMultiply(float* a, const float* b);
 }
 
