@@ -241,9 +241,10 @@ struct Shape
 {
 	ShapeType::Enum m_Type;
 	ShapeAttributes m_Attrs;
+	float m_BoundingRect[4]; // NOTE: Transformation independent axis-aligned bounding rect {minx, miny, maxx, maxy}
 
 	union {
-		ShapeList m_ShapeList; // Note: Used for ShapeType::Group
+		ShapeList m_ShapeList; // NOTE: Used for ShapeType::Group
 		PointList m_PointList; // NOTE: Used for ShapeType::Polyline and ShapeType::Polygon
 		Rect m_Rect;
 		Circle m_Circle;
@@ -307,16 +308,20 @@ void pointListShrinkToFit(PointList* ptList);
 void pointListFree(PointList* ptList);
 bool pointListFromString(PointList* ptList, const bx::StringView& str);
 bool pointListToString(const PointList* ptList, bx::WriterI* writer);
+void pointListCalcBounds(const PointList* ptList, float* bounds);
 
 void shapeAttrsSetID(ShapeAttributes* attrs, const bx::StringView& id);
 void shapeAttrsSetFontFamily(ShapeAttributes* attrs, const bx::StringView& fontFamily);
 
 void shapeFree(Shape* shape);
 bool shapeCopy(Shape* dst, const Shape* src, bool copyAttrs = true);
+void shapeUpdateBounds(Shape* shape);
 
 void transformIdentity(float* transform);
 void transformTranslation(float* transform, float x, float y);
 void transformMultiply(float* a, const float* b);
+void transformTranslate(float* transform, float x, float y);
+void transformPoint(const float* transform, const float* localPos, float* globalPos);
 }
 
 #endif

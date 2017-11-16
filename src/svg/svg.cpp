@@ -2,6 +2,8 @@
 #include <bx/bx.h>
 #include <bx/allocator.h>
 #include <bx/string.h>
+#include <bx/math.h>
+#include <float.h> // FLT_MAX
 
 namespace ssvg
 {
@@ -36,6 +38,21 @@ void transformMultiply(float* a, const float* b)
 	res[4] = a[0] * b[4] + a[2] * b[5] + a[4];
 	res[5] = a[1] * b[4] + a[3] * b[5] + a[5];
 	bx::memCopy(a, res, sizeof(float) * 6);
+}
+
+void transformTranslate(float* transform, float x, float y)
+{
+	float tmp[6];
+	transformTranslation(&tmp[0], x, y);
+	transformMultiply(transform, tmp);
+}
+
+void transformPoint(const float* transform, const float* localPos, float* globalPos)
+{
+	const float x = localPos[0];
+	const float y = localPos[1];
+	globalPos[0] = transform[0] * x + transform[2] * y + transform[4];
+	globalPos[1] = transform[1] * x + transform[3] * y + transform[5];
 }
 
 Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const ShapeAttributes* parentAttrs)
@@ -155,26 +172,6 @@ void shapeListDeleteShape(ShapeList* shapeList, uint32_t shapeID)
 	shapeList->m_NumShapes--;
 }
 
-void shapeFree(Shape* shape)
-{
-	switch (shape->m_Type) {
-	case ShapeType::Group:
-		shapeListFree(&shape->m_ShapeList);
-		break;
-	case ShapeType::Path:
-		pathFree(&shape->m_Path);
-		break;
-	case ShapeType::Polygon:
-	case ShapeType::Polyline:
-		pointListFree(&shape->m_PointList);
-		break;
-	case ShapeType::Text:
-		BX_FREE(s_Allocator, shape->m_Text.m_String);
-		shape->m_Text.m_String = nullptr;
-		break;
-	}
-}
-
 PathCmd* pathAllocCommands(Path* path, uint32_t n)
 {
 	if (path->m_NumCommands + n > path->m_Capacity) {
@@ -258,6 +255,30 @@ void pointListFree(PointList* ptList)
 	ptList->m_Capacity = 0;
 }
 
+void pointListCalcBounds(const PointList* ptList, float* bounds)
+{
+	const uint32_t numPoints = ptList->m_NumPoints;
+	if (!numPoints) {
+		// No points -> invalid bounding rect
+		bounds[0] = bounds[1] = FLT_MAX;
+		bounds[2] = bounds[3] = -FLT_MAX;
+		return;
+	}
+
+	bounds[0] = bounds[2] = ptList->m_Coords[0];
+	bounds[1] = bounds[3] = ptList->m_Coords[1];
+
+	for (uint32_t i = 1; i < numPoints; ++i) {
+		const float x = ptList->m_Coords[i * 2 + 0];
+		const float y = ptList->m_Coords[i * 2 + 1];
+
+		bounds[0] = bx::fmin(bounds[0], x);
+		bounds[1] = bx::fmin(bounds[1], y);
+		bounds[2] = bx::fmax(bounds[2], x);
+		bounds[3] = bx::fmax(bounds[3], y);
+	}
+}
+
 void shapeAttrsSetID(ShapeAttributes* attrs, const bx::StringView& value)
 {
 	uint32_t maxLen = bx::min<uint32_t>(SSVG_CONFIG_ID_MAX_LEN - 1, value.getLength());
@@ -315,6 +336,7 @@ bool shapeCopy(Shape* dst, const Shape* src, bool copyAttrs)
 	const ShapeType::Enum type = src->m_Type;
 
 	dst->m_Type = type;
+	bx::memCopy(&dst->m_BoundingRect[0], &src->m_BoundingRect[0], sizeof(float) * 4);
 	if (copyAttrs) {
 		bx::memCopy(&dst->m_Attrs, &src->m_Attrs, sizeof(ShapeAttributes));
 	}
@@ -382,5 +404,83 @@ bool shapeCopy(Shape* dst, const Shape* src, bool copyAttrs)
 	}
 
 	return true;
+}
+
+void shapeFree(Shape* shape)
+{
+	switch (shape->m_Type) {
+	case ShapeType::Group:
+		shapeListFree(&shape->m_ShapeList);
+		break;
+	case ShapeType::Path:
+		pathFree(&shape->m_Path);
+		break;
+	case ShapeType::Polygon:
+	case ShapeType::Polyline:
+		pointListFree(&shape->m_PointList);
+		break;
+	case ShapeType::Text:
+		BX_FREE(s_Allocator, shape->m_Text.m_String);
+		shape->m_Text.m_String = nullptr;
+		break;
+	}
+}
+
+void shapeUpdateBounds(Shape* shape)
+{
+	float bounds[4] = { FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX };
+
+	const ShapeType::Enum type = shape->m_Type;
+	switch (type) {
+	case ShapeType::Group:
+	{
+		ShapeList* children = &shape->m_ShapeList;
+		const uint32_t numChildren = children->m_NumShapes;
+		for (uint32_t i = 0; i < numChildren; ++i) {
+			Shape* child = &children->m_Shapes[i];
+			shapeUpdateBounds(child);
+
+			// TODO: Since this is a group, the child's bounding rect should be transformed using its
+			// transformation matrix before calculating the group's local bounding rect.
+		}
+	}
+		break;
+	case ShapeType::Rect:
+		bounds[0] = shape->m_Rect.x;
+		bounds[1] = shape->m_Rect.y;
+		bounds[2] = shape->m_Rect.x + shape->m_Rect.width;
+		bounds[3] = shape->m_Rect.y + shape->m_Rect.height;
+		break;
+	case ShapeType::Circle:
+		bounds[0] = shape->m_Circle.cx - shape->m_Circle.r;
+		bounds[1] = shape->m_Circle.cy - shape->m_Circle.r;
+		bounds[2] = shape->m_Circle.cx + shape->m_Circle.r;
+		bounds[3] = shape->m_Circle.cy + shape->m_Circle.r;
+		break;
+	case ShapeType::Ellipse:
+		bounds[0] = shape->m_Ellipse.cx - shape->m_Ellipse.rx;
+		bounds[1] = shape->m_Ellipse.cy - shape->m_Ellipse.ry;
+		bounds[2] = shape->m_Ellipse.cx + shape->m_Ellipse.rx;
+		bounds[3] = shape->m_Ellipse.cy + shape->m_Ellipse.ry;
+		break;
+	case ShapeType::Line:
+		bounds[0] = bx::fmin(shape->m_Line.x1, shape->m_Line.x2);
+		bounds[1] = bx::fmin(shape->m_Line.y1, shape->m_Line.y2);
+		bounds[2] = bx::fmax(shape->m_Line.x1, shape->m_Line.x2);
+		bounds[3] = bx::fmax(shape->m_Line.y1, shape->m_Line.y2);
+		break;
+	case ShapeType::Polyline:
+	case ShapeType::Polygon:
+		pointListCalcBounds(&shape->m_PointList, &bounds[0]);
+		break;
+	case ShapeType::Path:
+		// TODO: 
+		break;
+	case ShapeType::Text:
+		// TODO: This is complicated!
+		break;
+	}
+
+	bx::memCopy(&shape->m_BoundingRect[0], &bounds[0], sizeof(float) * 4);
 }
 } // namespace svg

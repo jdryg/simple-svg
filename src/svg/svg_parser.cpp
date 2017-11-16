@@ -1213,8 +1213,11 @@ static bool parseShapes(ParserState* parser, ShapeList* shapeList, const ShapeAt
 				SVG_CHECK(shape != nullptr, "Shape allocation failed");
 
 				err = !parseFuncs[i].parseFunc(parser, shape);
-				found = true;
+				if (!err) {
+					shapeUpdateBounds(shape);
+				}
 
+				found = true;
 				break;
 			}
 		}

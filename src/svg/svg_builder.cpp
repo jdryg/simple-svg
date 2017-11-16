@@ -6,7 +6,7 @@ namespace ssvg
 {
 uint32_t shapeListAddShape(ShapeList* shapeList, const Shape* shape)
 {
-	SVG_CHECK(shape != nullptr, "Call shapeListAllocShape() instead");
+	SVG_CHECK(shape != nullptr, "Use shapeListAllocShape() instead");
 
 	Shape* newShape = shapeListAllocShape(shapeList, shape->m_Type, nullptr);
 	if (!newShape) {
@@ -14,6 +14,7 @@ uint32_t shapeListAddShape(ShapeList* shapeList, const Shape* shape)
 	}
 	
 	shapeCopy(newShape, shape, true);
+	shapeUpdateBounds(newShape);
 
 	return shapeList->m_NumShapes - 1;
 }
@@ -40,6 +41,8 @@ uint32_t shapeListAddGroup(ShapeList* shapeList, const ShapeAttributes* parentAt
 		shapeCopy(group, &tmpGroup);
 	}
 
+	shapeUpdateBounds(group);
+
 	return shapeList->m_NumShapes - 1;
 }
 
@@ -57,6 +60,8 @@ uint32_t shapeListAddRect(ShapeList* shapeList, const ShapeAttributes* parentAtt
 	rect->m_Rect.rx = rx;
 	rect->m_Rect.ry = ry;
 
+	shapeUpdateBounds(rect);
+
 	return shapeList->m_NumShapes - 1;
 }
 	
@@ -70,6 +75,8 @@ uint32_t shapeListAddCircle(ShapeList* shapeList, const ShapeAttributes* parentA
 	circle->m_Circle.cx = x;
 	circle->m_Circle.cy = y;
 	circle->m_Circle.r = r;
+
+	shapeUpdateBounds(circle);
 
 	return shapeList->m_NumShapes - 1;
 }
@@ -86,6 +93,8 @@ uint32_t shapeListAddEllipse(ShapeList* shapeList, const ShapeAttributes* parent
 	ellipse->m_Ellipse.rx = rx;
 	ellipse->m_Ellipse.ry = ry;
 
+	shapeUpdateBounds(ellipse);
+
 	return shapeList->m_NumShapes - 1;
 }
 
@@ -100,6 +109,8 @@ uint32_t shapeListAddLine(ShapeList* shapeList, const ShapeAttributes* parentAtt
 	line->m_Line.y1 = y1;
 	line->m_Line.x2 = x2;
 	line->m_Line.y2 = y2;
+
+	shapeUpdateBounds(line);
 
 	return shapeList->m_NumShapes - 1;
 }
@@ -116,6 +127,8 @@ uint32_t shapeListAddPolyline(ShapeList* shapeList, const ShapeAttributes* paren
 		bx::memCopy(dstCoords, coords, sizeof(float) * 2 * numPoints);
 	}
 
+	shapeUpdateBounds(polyline);
+
 	return shapeList->m_NumShapes - 1;
 }
 	
@@ -130,6 +143,8 @@ uint32_t shapeListAddPolygon(ShapeList* shapeList, const ShapeAttributes* parent
 		float* dstCoords = pointListAllocPoints(&polygon->m_PointList, numPoints);
 		bx::memCopy(dstCoords, coords, sizeof(float) * 2 * numPoints);
 	}
+
+	shapeUpdateBounds(polygon);
 
 	return shapeList->m_NumShapes - 1;
 }
@@ -154,6 +169,8 @@ uint32_t shapeListAddPath(ShapeList* shapeList, const ShapeAttributes* parentAtt
 
 		shapeCopy(path, &tmpPath);
 	}
+
+	shapeUpdateBounds(path);
 
 	return shapeList->m_NumShapes - 1;
 }
@@ -184,6 +201,8 @@ uint32_t shapeListAddText(ShapeList* shapeList, const ShapeAttributes* parentAtt
 		text->m_Text.m_Anchor = anchor;
 		text->m_Text.m_String = nullptr;
 	}
+
+	shapeUpdateBounds(text);
 
 	return shapeList->m_NumShapes - 1;
 }
