@@ -302,6 +302,7 @@ uint32_t pathCubicTo(Path* path, float x1, float y1, float x2, float y2, float x
 uint32_t pathQuadraticTo(Path* path, float x1, float y1, float x, float y);
 uint32_t pathArcTo(Path* path, float rx, float ry, float xAxisRotation, int largeArcFlag, int sweepFlag, float x, float y);
 uint32_t pathClose(Path* path);
+void pathCalcBounds(const Path* path, float* bounds);
 
 float* pointListAllocPoints(PointList* ptList, uint32_t n);
 void pointListShrinkToFit(PointList* ptList);
@@ -322,6 +323,7 @@ void transformTranslation(float* transform, float x, float y);
 void transformMultiply(float* a, const float* b);
 void transformTranslate(float* transform, float x, float y);
 void transformPoint(const float* transform, const float* localPos, float* globalPos);
+void transformBoundingRect(const float* transform, const float* localRect, float* globalRect);
 }
 
 #endif

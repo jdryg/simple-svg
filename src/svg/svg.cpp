@@ -55,6 +55,18 @@ void transformPoint(const float* transform, const float* localPos, float* global
 	globalPos[1] = transform[1] * x + transform[3] * y + transform[5];
 }
 
+void transformBoundingRect(const float* transform, const float* localRect, float* globalRect)
+{
+	float transformedRect[4];
+	transformPoint(transform, &localRect[0], &transformedRect[0]);
+	transformPoint(transform, &localRect[2], &transformedRect[2]);
+
+	globalRect[0] = bx::fmin(transformedRect[0], transformedRect[2]);
+	globalRect[1] = bx::fmin(transformedRect[1], transformedRect[3]);
+	globalRect[2] = bx::fmax(transformedRect[0], transformedRect[2]);
+	globalRect[3] = bx::fmax(transformedRect[1], transformedRect[3]);
+}
+
 Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const ShapeAttributes* parentAttrs)
 {
 	SVG_CHECK(shapeList->m_NumShapes <= shapeList->m_Capacity, "Trying to expand a read-only shape list?");
@@ -215,6 +227,185 @@ void pathFree(Path* path)
 	path->m_Commands = nullptr;
 	path->m_NumCommands = 0;
 	path->m_Capacity = 0;
+}
+
+inline uint32_t solveQuad(float a, float b, float c, float* t)
+{
+	if (bx::fabs(a) < 1e-5f) {
+		if (bx::fabs(b) > 1e-5f) {
+			t[0] = -c / b;
+			return 1;
+		}
+	} else {
+		const float desc = b * b - 4.0f * a * c;
+		if (bx::fabs(desc) > 1e-5f) {
+			const float desc_sqrt = bx::fsqrt(desc);
+			t[0] = (-b + desc_sqrt) / (2.0f * a);
+			t[1] = (-b - desc_sqrt) / (2.0f * a);
+
+			return 2;
+		}
+	}
+
+	return 0;
+}
+
+inline void evalCubicBezierAt(float t, const float* p0, const float* p1, const float* p2, const float* p3, float* p)
+{
+	const float t2 = t * t;
+	const float t3 = t2 * t;
+	const float one_t = 1.0f - t;
+	const float one_t2 = one_t * one_t;
+	const float one_t3 = one_t2 * one_t;
+
+	const float a = one_t3;
+	const float b = 3.0f * t * one_t2;
+	const float c = 3.0f * t2 * one_t;
+	const float d = t3;
+
+	p[0] = a * p0[0] + b * p1[0] + c * p2[0] + d * p3[0];
+	p[1] = a * p0[1] + b * p1[1] + c * p2[1] + d * p3[1];
+}
+
+inline void evalQuadraticBezierAt(float t, const float* p0, const float* p1, const float* p2, float* p)
+{
+	const float t2 = t * t;
+	const float one_t = 1.0f - t;
+	const float one_t2 = one_t * one_t;
+
+	const float a = one_t2;
+	const float b = 2.0f * one_t * t;
+	const float c = t2;
+
+	p[0] = a * p0[0] + b * p1[0] + c * p2[0];
+	p[1] = a * p0[1] + b * p1[1] + c * p2[1];
+}
+
+void pathCalcBounds(const Path* path, float* bounds)
+{
+	const uint32_t numCommands = path->m_NumCommands;
+	if (!numCommands) {
+		// No commands -> invalid bounding rect
+		bounds[0] = bounds[1] = FLT_MAX;
+		bounds[2] = bounds[3] = -FLT_MAX;
+		return;
+	}
+
+	const PathCmd* cmd = path->m_Commands;
+	SVG_CHECK(cmd->m_Type == PathCmdType::MoveTo, "First path command must be MoveTo");
+	bounds[0] = bounds[2] = cmd->m_Data[0];
+	bounds[1] = bounds[3] = cmd->m_Data[1];
+
+	float last[2] = { cmd->m_Data[0], cmd->m_Data[1] };
+	for (uint32_t iCmd = 1; iCmd < numCommands; ++iCmd) {
+		cmd = &path->m_Commands[iCmd];
+
+		switch (cmd->m_Type) {
+		case PathCmdType::MoveTo:
+		case PathCmdType::LineTo:
+			bounds[0] = bx::fmin(bounds[0], cmd->m_Data[0]);
+			bounds[1] = bx::fmin(bounds[1], cmd->m_Data[1]);
+			bounds[2] = bx::fmax(bounds[2], cmd->m_Data[0]);
+			bounds[3] = bx::fmax(bounds[3], cmd->m_Data[1]);
+
+			last[0] = cmd->m_Data[0];
+			last[1] = cmd->m_Data[1];
+			break;
+		case PathCmdType::CubicTo:
+		{
+			// Bezier end point
+			bounds[0] = bx::fmin(bounds[0], cmd->m_Data[4]);
+			bounds[1] = bx::fmin(bounds[1], cmd->m_Data[5]);
+			bounds[2] = bx::fmax(bounds[2], cmd->m_Data[4]);
+			bounds[3] = bx::fmax(bounds[3], cmd->m_Data[5]);
+
+			// Extremities
+			for (uint32_t dim = 0; dim < 2; ++dim) {
+				const float c0 = last[dim];
+				const float c1 = cmd->m_Data[dim + 0];
+				const float c2 = cmd->m_Data[dim + 2];
+				const float c3 = cmd->m_Data[dim + 4];
+
+				const float a = 3.0f * (-c0 + 3.0f * (c1 - c2) + c3);
+				const float b = 6.0f * (c0 - 2.0f * c1 + c2);
+				const float c = 3.0f * (c1 - c0);
+
+				float root[2] = { -1.0f, -1.0f }; // Max 2 roots
+				uint32_t numRoots = solveQuad(a, b, c, &root[0]);
+
+				for (uint32_t iRoot = 0; iRoot < numRoots; ++iRoot) {
+					const float t = root[iRoot];
+					if (t > 1e-5f && t < (1.0f - 1e-5f)) {
+						float pos[2];
+						evalCubicBezierAt(t, &last[0], &cmd->m_Data[0], &cmd->m_Data[2], &cmd->m_Data[4], &pos[0]);
+
+						bounds[0] = bx::fmin(bounds[0], pos[0]);
+						bounds[1] = bx::fmin(bounds[1], pos[1]);
+						bounds[2] = bx::fmax(bounds[2], pos[0]);
+						bounds[3] = bx::fmax(bounds[3], pos[1]);
+					}
+				}
+			}
+
+			last[0] = cmd->m_Data[4];
+			last[1] = cmd->m_Data[5];
+		}
+			break;
+		case PathCmdType::QuadraticTo:
+			// Bezier end point
+			bounds[0] = bx::fmin(bounds[0], cmd->m_Data[2]);
+			bounds[1] = bx::fmin(bounds[1], cmd->m_Data[3]);
+			bounds[2] = bx::fmax(bounds[2], cmd->m_Data[2]);
+			bounds[3] = bx::fmax(bounds[3], cmd->m_Data[3]);
+
+			// Extremities
+			for (uint32_t dim = 0; dim < 2; ++dim) {
+				const float c0 = last[dim];
+				const float c1 = cmd->m_Data[dim + 0];
+				const float c2 = cmd->m_Data[dim + 2];
+
+				// dBezier(2,t)/dt = 2 * (a * t + b)
+				const float a = (c2 - c1);
+				const float b = (c1 - c0);
+
+				if (bx::fabs(a) > 1e-5f) {
+					const float t = -b / a;
+
+					if (t > 1e-5f && t < (1.0f - 1e-5f)) {
+						float pos[2];
+						evalQuadraticBezierAt(t, &last[0], &cmd->m_Data[0], &cmd->m_Data[2], &pos[0]);
+
+						bounds[0] = bx::fmin(bounds[0], pos[0]);
+						bounds[1] = bx::fmin(bounds[1], pos[1]);
+						bounds[2] = bx::fmax(bounds[2], pos[0]);
+						bounds[3] = bx::fmax(bounds[3], pos[1]);
+					}
+				}
+			}
+
+			last[0] = cmd->m_Data[2];
+			last[1] = cmd->m_Data[3];
+			break;
+		case PathCmdType::ArcTo:
+			// TODO: Find the true bounds of the arc.
+
+			// End point
+			bounds[0] = bx::fmin(bounds[0], cmd->m_Data[5]);
+			bounds[1] = bx::fmin(bounds[1], cmd->m_Data[6]);
+			bounds[2] = bx::fmax(bounds[2], cmd->m_Data[5]);
+			bounds[3] = bx::fmax(bounds[3], cmd->m_Data[6]);
+
+			last[0] = cmd->m_Data[5];
+			last[1] = cmd->m_Data[6];
+			break;
+		case PathCmdType::ClosePath:
+			// Noop
+			break;
+		default:
+			SVG_CHECK(false, "Unknown path command");
+			break;
+		}
+	}
 }
 
 float* pointListAllocPoints(PointList* ptList, uint32_t n)
@@ -440,8 +631,15 @@ void shapeUpdateBounds(Shape* shape)
 			Shape* child = &children->m_Shapes[i];
 			shapeUpdateBounds(child);
 
-			// TODO: Since this is a group, the child's bounding rect should be transformed using its
+			// Since this is a group, the child's bounding rect should be transformed using its
 			// transformation matrix before calculating the group's local bounding rect.
+			float childTransformedRect[4];
+			transformBoundingRect(&child->m_Attrs.m_Transform[0], &child->m_BoundingRect[0], &childTransformedRect[0]);
+
+			bounds[0] = bx::fmin(bounds[0], childTransformedRect[0]);
+			bounds[1] = bx::fmin(bounds[1], childTransformedRect[1]);
+			bounds[2] = bx::fmax(bounds[2], childTransformedRect[2]);
+			bounds[3] = bx::fmax(bounds[3], childTransformedRect[3]);
 		}
 	}
 		break;
@@ -474,7 +672,7 @@ void shapeUpdateBounds(Shape* shape)
 		pointListCalcBounds(&shape->m_PointList, &bounds[0]);
 		break;
 	case ShapeType::Path:
-		// TODO: 
+		pathCalcBounds(&shape->m_Path, &bounds[0]);
 		break;
 	case ShapeType::Text:
 		// TODO: This is complicated!
