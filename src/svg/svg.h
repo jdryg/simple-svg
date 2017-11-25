@@ -115,7 +115,7 @@ struct PaintType
 {
 	enum Enum : uint32_t
 	{
-		None,
+		None = 0,
 		Transparent, // Does it make sense? 
 		Color
 	};
@@ -303,6 +303,7 @@ uint32_t pathQuadraticTo(Path* path, float x1, float y1, float x, float y);
 uint32_t pathArcTo(Path* path, float rx, float ry, float xAxisRotation, int largeArcFlag, int sweepFlag, float x, float y);
 uint32_t pathClose(Path* path);
 void pathCalcBounds(const Path* path, float* bounds);
+void pathConvertCommand(Path* path, uint32_t cmdID, PathCmdType::Enum newType);
 
 float* pointListAllocPoints(PointList* ptList, uint32_t n);
 void pointListShrinkToFit(PointList* ptList);

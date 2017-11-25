@@ -538,6 +538,15 @@ bool pathFromString(Path* path, const bx::StringView& str)
 
 			firstX = lastX = cmd->m_Data[0];
 			firstY = lastY = cmd->m_Data[1];
+
+			// https://www.w3.org/TR/SVG/paths.html#PathDataMovetoCommands
+			// If a moveto is followed by multiple pairs of coordinates, the subsequent pairs are treated 
+			// as implicit lineto commands. Hence, implicit lineto commands will be relative if the moveto 
+			// is relative, and absolute if the moveto is absolute. If a relative moveto (m) appears as the 
+			// first element of the path, then it is treated as a pair of absolute coordinates. In this case, 
+			// subsequent pairs of coordinates are treated as relative even though the initial moveto is 
+			// interpreted as an absolute moveto.
+			ch = bx::isLower(ch) ? 'l' : 'L';
 		} else if (lch == 'l') {
 			// LineTo abs
 			PathCmd* cmd = pathAllocCommand(path, PathCmdType::LineTo);

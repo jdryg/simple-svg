@@ -271,4 +271,119 @@ uint32_t pathClose(Path* path)
 
 	return path->m_NumCommands - 1;
 }
+
+inline void pathCmdGetEndPoint(const PathCmd* cmd, float* p)
+{
+	switch (cmd->m_Type) {
+	case PathCmdType::MoveTo:
+	case PathCmdType::LineTo:
+		p[0] = cmd->m_Data[0];
+		p[1] = cmd->m_Data[1];
+		break;
+	case PathCmdType::CubicTo:
+		p[0] = cmd->m_Data[4];
+		p[1] = cmd->m_Data[5];
+		break;
+	case PathCmdType::QuadraticTo:
+		p[0] = cmd->m_Data[2];
+		p[1] = cmd->m_Data[3];
+		break;
+	case PathCmdType::ArcTo:
+		p[0] = cmd->m_Data[5];
+		p[1] = cmd->m_Data[6];
+		break;
+	case PathCmdType::ClosePath:
+		// TODO: The end point of a close path command is the first command's end point
+		// which requires the whole path.
+		SVG_CHECK(false, "Cannot get ClosePath command's endpoint");
+		p[0] = p[1] = 0.0f;
+		break;
+	}
+}
+
+void pathConvertCommand(Path* path, uint32_t cmdID, PathCmdType::Enum newType)
+{
+	SVG_CHECK(cmdID < path->m_NumCommands, "Invalid command ID");
+
+	if (cmdID == 0) {
+		SVG_CHECK(newType == PathCmdType::MoveTo, "Cannot convert 1st command to other than MoveTo");
+		return;
+	}
+	
+	PathCmd* cmd = &path->m_Commands[cmdID];
+	const PathCmdType::Enum oldType = cmd->m_Type;
+	if (oldType == newType) {
+		// No conversion required.
+		return;
+	}
+
+	PathCmd* prevCmd = &path->m_Commands[cmdID - 1];
+
+	switch (oldType) {
+	case PathCmdType::MoveTo:
+		if (newType == PathCmdType::LineTo) {
+			cmd->m_Type = PathCmdType::LineTo;
+		} else {
+			SVG_WARN(false, "Path command conversion not implemented yet.");
+		}
+		break;
+	case PathCmdType::LineTo:
+		if (newType == PathCmdType::CubicTo) {
+			float last[2];
+			pathCmdGetEndPoint(prevCmd, &last[0]);
+
+			const float pos[2] = { cmd->m_Data[0], cmd->m_Data[1] };
+			const float delta[2] = { pos[0] - last[0], pos[1] - last[1] };
+
+			cmd->m_Type = PathCmdType::CubicTo;
+			cmd->m_Data[0] = last[0] + delta[0] * 0.5f;
+			cmd->m_Data[1] = last[1] + delta[1] * 0.5f;
+			cmd->m_Data[2] = last[0] + delta[0] * 0.5f;
+			cmd->m_Data[3] = last[1] + delta[1] * 0.5f;
+			cmd->m_Data[4] = pos[0];
+			cmd->m_Data[5] = pos[1];
+		} else if (newType == PathCmdType::QuadraticTo) {
+			float last[2];
+			pathCmdGetEndPoint(prevCmd, &last[0]);
+
+			const float pos[2] = { cmd->m_Data[0], cmd->m_Data[1] };
+			const float delta[2] = { pos[0] - last[0], pos[1] - last[1] };
+
+			cmd->m_Type = PathCmdType::QuadraticTo;
+			cmd->m_Data[0] = last[0] + delta[0] * 0.5f;
+			cmd->m_Data[1] = last[1] + delta[1] * 0.5f;
+			cmd->m_Data[2] = pos[0];
+			cmd->m_Data[3] = pos[1];
+		} else {
+			SVG_WARN(false, "Path command conversion not implemented yet.");
+		}
+		break;
+	case PathCmdType::CubicTo:
+		if (newType == PathCmdType::LineTo) {
+			cmd->m_Type = PathCmdType::LineTo;
+			cmd->m_Data[0] = cmd->m_Data[4];
+			cmd->m_Data[1] = cmd->m_Data[5];
+		} else {
+			SVG_WARN(false, "Path command conversion not implemented yet.");
+		}
+		break;
+	case PathCmdType::QuadraticTo:
+		if (newType == PathCmdType::LineTo) {
+			cmd->m_Type = PathCmdType::LineTo;
+			cmd->m_Data[0] = cmd->m_Data[2];
+			cmd->m_Data[1] = cmd->m_Data[3];
+		} else {
+			SVG_WARN(false, "Path command conversion not implemented yet.");
+		}
+		break;
+	case PathCmdType::ArcTo:
+		SVG_WARN(false, "Path command conversion not implemented yet.");
+		break;
+	case PathCmdType::ClosePath:
+		SVG_WARN(false, "Path command conversion not implemented yet.");
+		break;
+	default:
+		SVG_CHECK(false, "Unknown command type");
+	}
+}
 }
