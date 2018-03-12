@@ -12,7 +12,7 @@ uint32_t shapeListAddShape(ShapeList* shapeList, const Shape* shape)
 	if (!newShape) {
 		return ~0u;
 	}
-	
+
 	shapeCopy(newShape, shape, true);
 	shapeUpdateBounds(newShape);
 
@@ -64,7 +64,7 @@ uint32_t shapeListAddRect(ShapeList* shapeList, const ShapeAttributes* parentAtt
 
 	return shapeList->m_NumShapes - 1;
 }
-	
+
 uint32_t shapeListAddCircle(ShapeList* shapeList, const ShapeAttributes* parentAttrs, float x, float y, float r)
 {
 	Shape* circle = shapeListAllocShape(shapeList, ShapeType::Circle, parentAttrs);
@@ -80,7 +80,7 @@ uint32_t shapeListAddCircle(ShapeList* shapeList, const ShapeAttributes* parentA
 
 	return shapeList->m_NumShapes - 1;
 }
-	
+
 uint32_t shapeListAddEllipse(ShapeList* shapeList, const ShapeAttributes* parentAttrs, float x, float y, float rx, float ry)
 {
 	Shape* ellipse = shapeListAllocShape(shapeList, ShapeType::Ellipse, parentAttrs);
@@ -114,7 +114,7 @@ uint32_t shapeListAddLine(ShapeList* shapeList, const ShapeAttributes* parentAtt
 
 	return shapeList->m_NumShapes - 1;
 }
-	
+
 uint32_t shapeListAddPolyline(ShapeList* shapeList, const ShapeAttributes* parentAttrs, const float* coords, uint32_t numPoints)
 {
 	Shape* polyline = shapeListAllocShape(shapeList, ShapeType::Polyline, parentAttrs);
@@ -131,7 +131,7 @@ uint32_t shapeListAddPolyline(ShapeList* shapeList, const ShapeAttributes* paren
 
 	return shapeList->m_NumShapes - 1;
 }
-	
+
 uint32_t shapeListAddPolygon(ShapeList* shapeList, const ShapeAttributes* parentAttrs, const float* coords, uint32_t numPoints)
 {
 	Shape* polygon = shapeListAllocShape(shapeList, ShapeType::Polygon, parentAttrs);
@@ -309,7 +309,7 @@ void pathConvertCommand(Path* path, uint32_t cmdID, PathCmdType::Enum newType)
 		SVG_CHECK(newType == PathCmdType::MoveTo, "Cannot convert 1st command to other than MoveTo");
 		return;
 	}
-	
+
 	PathCmd* cmd = &path->m_Commands[cmdID];
 	const PathCmdType::Enum oldType = cmd->m_Type;
 	if (oldType == newType) {

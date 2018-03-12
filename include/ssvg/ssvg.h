@@ -216,7 +216,8 @@ struct Paint
 {
 	PaintType::Enum m_Type;
 
-	union {
+	union
+	{
 		uint32_t m_ColorABGR;
 	};
 };
@@ -243,7 +244,8 @@ struct Shape
 	ShapeAttributes m_Attrs;
 	float m_BoundingRect[4]; // NOTE: Transformation independent axis-aligned bounding rect {minx, miny, maxx, maxy}
 
-	union {
+	union
+	{
 		ShapeList m_ShapeList; // NOTE: Used for ShapeType::Group
 		PointList m_PointList; // NOTE: Used for ShapeType::Polyline and ShapeType::Polygon
 		Rect m_Rect;

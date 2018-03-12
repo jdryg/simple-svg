@@ -323,7 +323,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, const Shape
 				return false;
 			}
 			bx::writePrintf(writer, ">\n");
-			
+
 			if (!writeShapeList(writer, &shape->m_ShapeList, &shape->m_Attrs, indentation + 2)) {
 				return false;
 			}

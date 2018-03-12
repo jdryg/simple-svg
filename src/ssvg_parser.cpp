@@ -235,15 +235,15 @@ static bool parserGetAttribute(ParserState* parser, bx::StringView* name, bx::St
 static bool parseVersion(const bx::StringView& verStr, uint16_t* maj, uint16_t* min)
 {
 	const float fver = (float)atof(verStr.getPtr());
-	*maj = (uint16_t)bx::ffloor(fver);
-	*min = (uint16_t)bx::ffloor((fver - *maj) * 10.0f);
+	*maj = (uint16_t)bx::floor(fver);
+	*min = (uint16_t)bx::floor((fver - *maj) * 10.0f);
 
 	return true;
 }
 
 static bool parseNumber(const bx::StringView& str, float* val, float min = -FLT_MAX, float max = FLT_MAX)
 {
-	*val = bx::fclamp((float)atof(str.getPtr()), min, max);
+	*val = bx::clamp<float>((float)atof(str.getPtr()), min, max);
 
 	return true;
 }
@@ -459,8 +459,8 @@ static bool parseTransform(ParserState* parser, const bx::StringView& str, float
 			valuePtr = parseCoord(valuePtr, valueEnd, &angle_deg);
 
 			const float angle_rad = bx::toRad(angle_deg);
-			const float cosAngle = bx::fcos(angle_rad);
-			const float sinAngle = bx::fsin(angle_rad);
+			const float cosAngle = bx::cos(angle_rad);
+			const float sinAngle = bx::sin(angle_rad);
 			comp[0] = cosAngle;
 			comp[1] = sinAngle;
 			comp[2] = -sinAngle;
@@ -480,13 +480,13 @@ static bool parseTransform(ParserState* parser, const bx::StringView& str, float
 			valuePtr = parseCoord(valuePtr, valueEnd, &angle_deg);
 
 			const float angle_rad = bx::toRad(angle_deg);
-			comp[2] = bx::ftan(angle_rad);
+			comp[2] = bx::tan(angle_rad);
 		} else if (!bx::strCmp(type, "skewY", 5)) {
 			float angle_deg;
 			valuePtr = parseCoord(valuePtr, valueEnd, &angle_deg);
 
 			const float angle_rad = bx::toRad(angle_deg);
-			comp[1] = bx::ftan(angle_rad);
+			comp[1] = bx::tan(angle_rad);
 		} else {
 			SVG_WARN(false, "Unknown transform component %.*s(%.*s)", type.getLength(), type.getPtr(), value.getLength(), value.getPtr());
 			valuePtr = valueEnd;

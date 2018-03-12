@@ -61,10 +61,10 @@ void transformBoundingRect(const float* transform, const float* localRect, float
 	transformPoint(transform, &localRect[0], &transformedRect[0]);
 	transformPoint(transform, &localRect[2], &transformedRect[2]);
 
-	globalRect[0] = bx::fmin(transformedRect[0], transformedRect[2]);
-	globalRect[1] = bx::fmin(transformedRect[1], transformedRect[3]);
-	globalRect[2] = bx::fmax(transformedRect[0], transformedRect[2]);
-	globalRect[3] = bx::fmax(transformedRect[1], transformedRect[3]);
+	globalRect[0] = bx::min<float>(transformedRect[0], transformedRect[2]);
+	globalRect[1] = bx::min<float>(transformedRect[1], transformedRect[3]);
+	globalRect[2] = bx::max<float>(transformedRect[0], transformedRect[2]);
+	globalRect[3] = bx::max<float>(transformedRect[1], transformedRect[3]);
 }
 
 Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const ShapeAttributes* parentAttrs)
@@ -83,14 +83,14 @@ Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const Sha
 
 	Shape* shape = &shapeList->m_Shapes[shapeList->m_NumShapes++];
 	shape->m_Type = type;
-	
+
 	// Copy parent attributes
 	if (parentAttrs) {
 		bx::memCopy(&shape->m_Attrs, parentAttrs, sizeof(ShapeAttributes));
 	} else {
 		bx::memCopy(&shape->m_Attrs, &s_DefaultAttrs, sizeof(ShapeAttributes));
 	}
-	
+
 	// Reset id and transform
 	shape->m_Attrs.m_ID[0] = '\0';
 	transformIdentity(&shape->m_Attrs.m_Transform[0]);
@@ -231,15 +231,15 @@ void pathFree(Path* path)
 
 inline uint32_t solveQuad(float a, float b, float c, float* t)
 {
-	if (bx::fabs(a) < 1e-5f) {
-		if (bx::fabs(b) > 1e-5f) {
+	if (bx::abs(a) < 1e-5f) {
+		if (bx::abs(b) > 1e-5f) {
 			t[0] = -c / b;
 			return 1;
 		}
 	} else {
 		const float desc = b * b - 4.0f * a * c;
-		if (bx::fabs(desc) > 1e-5f) {
-			const float desc_sqrt = bx::fsqrt(desc);
+		if (bx::abs(desc) > 1e-5f) {
+			const float desc_sqrt = bx::sqrt(desc);
 			t[0] = (-b + desc_sqrt) / (2.0f * a);
 			t[1] = (-b - desc_sqrt) / (2.0f * a);
 
@@ -303,10 +303,10 @@ void pathCalcBounds(const Path* path, float* bounds)
 		switch (cmd->m_Type) {
 		case PathCmdType::MoveTo:
 		case PathCmdType::LineTo:
-			bounds[0] = bx::fmin(bounds[0], cmd->m_Data[0]);
-			bounds[1] = bx::fmin(bounds[1], cmd->m_Data[1]);
-			bounds[2] = bx::fmax(bounds[2], cmd->m_Data[0]);
-			bounds[3] = bx::fmax(bounds[3], cmd->m_Data[1]);
+			bounds[0] = bx::min<float>(bounds[0], cmd->m_Data[0]);
+			bounds[1] = bx::min<float>(bounds[1], cmd->m_Data[1]);
+			bounds[2] = bx::max<float>(bounds[2], cmd->m_Data[0]);
+			bounds[3] = bx::max<float>(bounds[3], cmd->m_Data[1]);
 
 			last[0] = cmd->m_Data[0];
 			last[1] = cmd->m_Data[1];
@@ -314,10 +314,10 @@ void pathCalcBounds(const Path* path, float* bounds)
 		case PathCmdType::CubicTo:
 		{
 			// Bezier end point
-			bounds[0] = bx::fmin(bounds[0], cmd->m_Data[4]);
-			bounds[1] = bx::fmin(bounds[1], cmd->m_Data[5]);
-			bounds[2] = bx::fmax(bounds[2], cmd->m_Data[4]);
-			bounds[3] = bx::fmax(bounds[3], cmd->m_Data[5]);
+			bounds[0] = bx::min<float>(bounds[0], cmd->m_Data[4]);
+			bounds[1] = bx::min<float>(bounds[1], cmd->m_Data[5]);
+			bounds[2] = bx::max<float>(bounds[2], cmd->m_Data[4]);
+			bounds[3] = bx::max<float>(bounds[3], cmd->m_Data[5]);
 
 			// Extremities
 			for (uint32_t dim = 0; dim < 2; ++dim) {
@@ -339,10 +339,10 @@ void pathCalcBounds(const Path* path, float* bounds)
 						float pos[2];
 						evalCubicBezierAt(t, &last[0], &cmd->m_Data[0], &cmd->m_Data[2], &cmd->m_Data[4], &pos[0]);
 
-						bounds[0] = bx::fmin(bounds[0], pos[0]);
-						bounds[1] = bx::fmin(bounds[1], pos[1]);
-						bounds[2] = bx::fmax(bounds[2], pos[0]);
-						bounds[3] = bx::fmax(bounds[3], pos[1]);
+						bounds[0] = bx::min<float>(bounds[0], pos[0]);
+						bounds[1] = bx::min<float>(bounds[1], pos[1]);
+						bounds[2] = bx::max<float>(bounds[2], pos[0]);
+						bounds[3] = bx::max<float>(bounds[3], pos[1]);
 					}
 				}
 			}
@@ -350,13 +350,13 @@ void pathCalcBounds(const Path* path, float* bounds)
 			last[0] = cmd->m_Data[4];
 			last[1] = cmd->m_Data[5];
 		}
-			break;
+		break;
 		case PathCmdType::QuadraticTo:
 			// Bezier end point
-			bounds[0] = bx::fmin(bounds[0], cmd->m_Data[2]);
-			bounds[1] = bx::fmin(bounds[1], cmd->m_Data[3]);
-			bounds[2] = bx::fmax(bounds[2], cmd->m_Data[2]);
-			bounds[3] = bx::fmax(bounds[3], cmd->m_Data[3]);
+			bounds[0] = bx::min<float>(bounds[0], cmd->m_Data[2]);
+			bounds[1] = bx::min<float>(bounds[1], cmd->m_Data[3]);
+			bounds[2] = bx::max<float>(bounds[2], cmd->m_Data[2]);
+			bounds[3] = bx::max<float>(bounds[3], cmd->m_Data[3]);
 
 			// Extremities
 			for (uint32_t dim = 0; dim < 2; ++dim) {
@@ -368,17 +368,17 @@ void pathCalcBounds(const Path* path, float* bounds)
 				const float a = (c2 - c1);
 				const float b = (c1 - c0);
 
-				if (bx::fabs(a) > 1e-5f) {
+				if (bx::abs(a) > 1e-5f) {
 					const float t = -b / a;
 
 					if (t > 1e-5f && t < (1.0f - 1e-5f)) {
 						float pos[2];
 						evalQuadraticBezierAt(t, &last[0], &cmd->m_Data[0], &cmd->m_Data[2], &pos[0]);
 
-						bounds[0] = bx::fmin(bounds[0], pos[0]);
-						bounds[1] = bx::fmin(bounds[1], pos[1]);
-						bounds[2] = bx::fmax(bounds[2], pos[0]);
-						bounds[3] = bx::fmax(bounds[3], pos[1]);
+						bounds[0] = bx::min<float>(bounds[0], pos[0]);
+						bounds[1] = bx::min<float>(bounds[1], pos[1]);
+						bounds[2] = bx::max<float>(bounds[2], pos[0]);
+						bounds[3] = bx::max<float>(bounds[3], pos[1]);
 					}
 				}
 			}
@@ -390,10 +390,10 @@ void pathCalcBounds(const Path* path, float* bounds)
 			// TODO: Find the true bounds of the arc.
 
 			// End point
-			bounds[0] = bx::fmin(bounds[0], cmd->m_Data[5]);
-			bounds[1] = bx::fmin(bounds[1], cmd->m_Data[6]);
-			bounds[2] = bx::fmax(bounds[2], cmd->m_Data[5]);
-			bounds[3] = bx::fmax(bounds[3], cmd->m_Data[6]);
+			bounds[0] = bx::min<float>(bounds[0], cmd->m_Data[5]);
+			bounds[1] = bx::min<float>(bounds[1], cmd->m_Data[6]);
+			bounds[2] = bx::max<float>(bounds[2], cmd->m_Data[5]);
+			bounds[3] = bx::max<float>(bounds[3], cmd->m_Data[6]);
 
 			last[0] = cmd->m_Data[5];
 			last[1] = cmd->m_Data[6];
@@ -463,10 +463,10 @@ void pointListCalcBounds(const PointList* ptList, float* bounds)
 		const float x = ptList->m_Coords[i * 2 + 0];
 		const float y = ptList->m_Coords[i * 2 + 1];
 
-		bounds[0] = bx::fmin(bounds[0], x);
-		bounds[1] = bx::fmin(bounds[1], y);
-		bounds[2] = bx::fmax(bounds[2], x);
-		bounds[3] = bx::fmax(bounds[3], y);
+		bounds[0] = bx::min<float>(bounds[0], x);
+		bounds[1] = bx::min<float>(bounds[1], y);
+		bounds[2] = bx::max<float>(bounds[2], x);
+		bounds[3] = bx::max<float>(bounds[3], y);
 	}
 }
 
@@ -547,7 +547,7 @@ bool shapeCopy(Shape* dst, const Shape* src, bool copyAttrs)
 			shapeCopy(dstShape, srcShape);
 		}
 	}
-		break;
+	break;
 	case ShapeType::Rect:
 		bx::memCopy(&dst->m_Rect, &src->m_Rect, sizeof(Rect));
 		break;
@@ -563,8 +563,8 @@ bool shapeCopy(Shape* dst, const Shape* src, bool copyAttrs)
 	case ShapeType::Polyline:
 	case ShapeType::Polygon:
 		bx::memCopy(
-			pointListAllocPoints(&dst->m_PointList, src->m_PointList.m_NumPoints), 
-			src->m_PointList.m_Coords, 
+			pointListAllocPoints(&dst->m_PointList, src->m_PointList.m_NumPoints),
+			src->m_PointList.m_Coords,
 			sizeof(float) * 2 * src->m_PointList.m_NumPoints);
 		break;
 	case ShapeType::Path:
@@ -576,7 +576,7 @@ bool shapeCopy(Shape* dst, const Shape* src, bool copyAttrs)
 		PathCmd* dstCommands = pathAllocCommands(dstPath, numCommands);
 		bx::memCopy(dstCommands, srcPath->m_Commands, sizeof(PathCmd) * numCommands);
 	}
-		break;
+	break;
 	case ShapeType::Text:
 	{
 		const Text* srcText = &src->m_Text;
@@ -585,13 +585,13 @@ bool shapeCopy(Shape* dst, const Shape* src, bool copyAttrs)
 		dstText->x = srcText->x;
 		dstText->y = srcText->y;
 		dstText->m_Anchor = srcText->m_Anchor;
-		
+
 		const uint32_t len = bx::strLen(srcText->m_String);
 		dstText->m_String = (char*)BX_ALLOC(s_Allocator, sizeof(char) * (len + 1));
 		bx::memCopy(dstText->m_String, srcText->m_String, len);
 		dstText->m_String[len] = '\0';
 	}
-		break;
+	break;
 	}
 
 	return true;
@@ -636,13 +636,13 @@ void shapeUpdateBounds(Shape* shape)
 			float childTransformedRect[4];
 			transformBoundingRect(&child->m_Attrs.m_Transform[0], &child->m_BoundingRect[0], &childTransformedRect[0]);
 
-			bounds[0] = bx::fmin(bounds[0], childTransformedRect[0]);
-			bounds[1] = bx::fmin(bounds[1], childTransformedRect[1]);
-			bounds[2] = bx::fmax(bounds[2], childTransformedRect[2]);
-			bounds[3] = bx::fmax(bounds[3], childTransformedRect[3]);
+			bounds[0] = bx::min<float>(bounds[0], childTransformedRect[0]);
+			bounds[1] = bx::min<float>(bounds[1], childTransformedRect[1]);
+			bounds[2] = bx::max<float>(bounds[2], childTransformedRect[2]);
+			bounds[3] = bx::max<float>(bounds[3], childTransformedRect[3]);
 		}
 	}
-		break;
+	break;
 	case ShapeType::Rect:
 		bounds[0] = shape->m_Rect.x;
 		bounds[1] = shape->m_Rect.y;
@@ -662,10 +662,10 @@ void shapeUpdateBounds(Shape* shape)
 		bounds[3] = shape->m_Ellipse.cy + shape->m_Ellipse.ry;
 		break;
 	case ShapeType::Line:
-		bounds[0] = bx::fmin(shape->m_Line.x1, shape->m_Line.x2);
-		bounds[1] = bx::fmin(shape->m_Line.y1, shape->m_Line.y2);
-		bounds[2] = bx::fmax(shape->m_Line.x1, shape->m_Line.x2);
-		bounds[3] = bx::fmax(shape->m_Line.y1, shape->m_Line.y2);
+		bounds[0] = bx::min<float>(shape->m_Line.x1, shape->m_Line.x2);
+		bounds[1] = bx::min<float>(shape->m_Line.y1, shape->m_Line.y2);
+		bounds[2] = bx::max<float>(shape->m_Line.x1, shape->m_Line.x2);
+		bounds[3] = bx::max<float>(shape->m_Line.y1, shape->m_Line.y2);
 		break;
 	case ShapeType::Polyline:
 	case ShapeType::Polygon:
