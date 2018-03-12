@@ -1,20 +1,20 @@
 # simple-svg
 SVG parser, writer and helper functions
 
-### Cloning
-```
-git clone --recursive https://github.com/jdryg/simple-svg.git
-```
-
 ### Code
 
-* Library: `src/svg/*`
-	- `svg.h`: Struct, enums and function declarations
-	- `svg.cpp`: Generic library functions for dealing with images, shape lists, point lists and paths
-	- `svg_parser.cpp`: SVG parser
-	- `svg_writer.cpp`: SVG writer
-	- `svg_builder.cpp`: Helper functions for building images
-* Demo: `src/main.cpp`
+* Library:
+	- `ssvg.h`: Structs, enums and function declarations
+	- `ssvg.cpp`: Generic library functions for dealing with images, shape lists, point lists and paths
+	- `ssvg_parser.cpp`: SVG parser
+	- `ssvg_writer.cpp`: SVG writer
+	- `ssvg_builder.cpp`: Helper functions for building images
+* Demo: 
+	- `examples/main.cpp`
+
+### Dependencies
+
+* [bx](https://github.com/bkaradzic/bx)
 
 ### License
 
