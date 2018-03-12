@@ -1,4 +1,0 @@
-[submodule "bx"]
-	path = bx
-	url = https://github.com/bkaradzic/bx.git
-	branch = master
