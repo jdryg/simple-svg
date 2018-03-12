@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #ifndef SSVG_CONFIG_DEBUG
-#	define SSVG_CONFIG_DEBUG 0
+#	define SSVG_CONFIG_DEBUG _DEBUG
 #endif
 
 // NOTE: Those 2 are used as the sizes of m_ID and m_FontFamily in ShapeAttributes structs.
@@ -23,6 +23,8 @@
 #endif
 
 #if SSVG_CONFIG_DEBUG
+#include <bx/debug.h>
+
 #define SVG_TRACE(_format, ...) \
 	do { \
 		bx::debugPrintf(BX_FILE_LINE_LITERAL "SimpleSVG " _format "\n", ##__VA_ARGS__); \
