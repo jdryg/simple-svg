@@ -3,7 +3,7 @@
 #include <bx/allocator.h>
 #include <bx/file.h>
 #include <bx/timer.h>
-#include "svg/svg.h"
+#include <ssvg/ssvg.h>
 
 bx::DefaultAllocator g_Allocator;
 
