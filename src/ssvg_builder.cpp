@@ -6,7 +6,7 @@ namespace ssvg
 {
 uint32_t shapeListAddShape(ShapeList* shapeList, const Shape* shape)
 {
-	SVG_CHECK(shape != nullptr, "Use shapeListAllocShape() instead");
+	SSVG_CHECK(shape != nullptr, "Use shapeListAllocShape() instead");
 
 	Shape* newShape = shapeListAllocShape(shapeList, shape->m_Type, nullptr);
 	if (!newShape) {
@@ -295,7 +295,7 @@ inline void pathCmdGetEndPoint(const PathCmd* cmd, float* p)
 	case PathCmdType::ClosePath:
 		// TODO: The end point of a close path command is the first command's end point
 		// which requires the whole path.
-		SVG_CHECK(false, "Cannot get ClosePath command's endpoint");
+		SSVG_CHECK(false, "Cannot get ClosePath command's endpoint");
 		p[0] = p[1] = 0.0f;
 		break;
 	}
@@ -303,10 +303,10 @@ inline void pathCmdGetEndPoint(const PathCmd* cmd, float* p)
 
 void pathConvertCommand(Path* path, uint32_t cmdID, PathCmdType::Enum newType)
 {
-	SVG_CHECK(cmdID < path->m_NumCommands, "Invalid command ID");
+	SSVG_CHECK(cmdID < path->m_NumCommands, "Invalid command ID");
 
 	if (cmdID == 0) {
-		SVG_CHECK(newType == PathCmdType::MoveTo, "Cannot convert 1st command to other than MoveTo");
+		SSVG_CHECK(newType == PathCmdType::MoveTo, "Cannot convert 1st command to other than MoveTo");
 		return;
 	}
 
@@ -324,7 +324,7 @@ void pathConvertCommand(Path* path, uint32_t cmdID, PathCmdType::Enum newType)
 		if (newType == PathCmdType::LineTo) {
 			cmd->m_Type = PathCmdType::LineTo;
 		} else {
-			SVG_WARN(false, "Path command conversion not implemented yet.");
+			SSVG_WARN(false, "Path command conversion not implemented yet.");
 		}
 		break;
 	case PathCmdType::LineTo:
@@ -355,7 +355,7 @@ void pathConvertCommand(Path* path, uint32_t cmdID, PathCmdType::Enum newType)
 			cmd->m_Data[2] = pos[0];
 			cmd->m_Data[3] = pos[1];
 		} else {
-			SVG_WARN(false, "Path command conversion not implemented yet.");
+			SSVG_WARN(false, "Path command conversion not implemented yet.");
 		}
 		break;
 	case PathCmdType::CubicTo:
@@ -364,7 +364,7 @@ void pathConvertCommand(Path* path, uint32_t cmdID, PathCmdType::Enum newType)
 			cmd->m_Data[0] = cmd->m_Data[4];
 			cmd->m_Data[1] = cmd->m_Data[5];
 		} else {
-			SVG_WARN(false, "Path command conversion not implemented yet.");
+			SSVG_WARN(false, "Path command conversion not implemented yet.");
 		}
 		break;
 	case PathCmdType::QuadraticTo:
@@ -373,17 +373,17 @@ void pathConvertCommand(Path* path, uint32_t cmdID, PathCmdType::Enum newType)
 			cmd->m_Data[0] = cmd->m_Data[2];
 			cmd->m_Data[1] = cmd->m_Data[3];
 		} else {
-			SVG_WARN(false, "Path command conversion not implemented yet.");
+			SSVG_WARN(false, "Path command conversion not implemented yet.");
 		}
 		break;
 	case PathCmdType::ArcTo:
-		SVG_WARN(false, "Path command conversion not implemented yet.");
+		SSVG_WARN(false, "Path command conversion not implemented yet.");
 		break;
 	case PathCmdType::ClosePath:
-		SVG_WARN(false, "Path command conversion not implemented yet.");
+		SSVG_WARN(false, "Path command conversion not implemented yet.");
 		break;
 	default:
-		SVG_CHECK(false, "Unknown command type");
+		SSVG_CHECK(false, "Unknown command type");
 	}
 }
 }

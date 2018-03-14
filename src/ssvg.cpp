@@ -69,7 +69,7 @@ void transformBoundingRect(const float* transform, const float* localRect, float
 
 Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const ShapeAttributes* parentAttrs)
 {
-	SVG_CHECK(shapeList->m_NumShapes <= shapeList->m_Capacity, "Trying to expand a read-only shape list?");
+	SSVG_CHECK(shapeList->m_NumShapes <= shapeList->m_Capacity, "Trying to expand a read-only shape list?");
 
 	if (shapeList->m_NumShapes + 1 > shapeList->m_Capacity) {
 		const uint32_t oldCapacity = shapeList->m_Capacity;
@@ -100,7 +100,7 @@ Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const Sha
 
 void shapeListShrinkToFit(ShapeList* shapeList)
 {
-	SVG_CHECK(shapeList->m_NumShapes <= shapeList->m_Capacity, "Trying to shrink a read-only shape list?");
+	SSVG_CHECK(shapeList->m_NumShapes <= shapeList->m_Capacity, "Trying to shrink a read-only shape list?");
 
 	if (!shapeList->m_NumShapes && shapeList->m_Capacity) {
 		BX_FREE(s_Allocator, shapeList->m_Shapes);
@@ -114,7 +114,7 @@ void shapeListShrinkToFit(ShapeList* shapeList)
 
 void shapeListFree(ShapeList* shapeList)
 {
-	SVG_CHECK(shapeList->m_NumShapes <= shapeList->m_Capacity, "Trying to free a read-only shape list?");
+	SSVG_CHECK(shapeList->m_NumShapes <= shapeList->m_Capacity, "Trying to free a read-only shape list?");
 
 	const uint32_t n = shapeList->m_NumShapes;
 	for (uint32_t i = 0; i < n; ++i) {
@@ -142,7 +142,7 @@ void shapeListReserve(ShapeList* shapeList, uint32_t capacity)
 
 uint32_t shapeListMoveShapeToBack(ShapeList* shapeList, uint32_t shapeID)
 {
-	SVG_CHECK(shapeID < shapeList->m_NumShapes, "Invalid shape ID");
+	SSVG_CHECK(shapeID < shapeList->m_NumShapes, "Invalid shape ID");
 	if (shapeID == 0 || shapeList->m_NumShapes <= 1) {
 		return shapeID;
 	}
@@ -157,7 +157,7 @@ uint32_t shapeListMoveShapeToBack(ShapeList* shapeList, uint32_t shapeID)
 
 uint32_t shapeListMoveShapeToFront(ShapeList* shapeList, uint32_t shapeID)
 {
-	SVG_CHECK(shapeID < shapeList->m_NumShapes, "Invalid shape ID");
+	SSVG_CHECK(shapeID < shapeList->m_NumShapes, "Invalid shape ID");
 	if (shapeID == shapeList->m_NumShapes - 1) {
 		return shapeID;
 	}
@@ -172,7 +172,7 @@ uint32_t shapeListMoveShapeToFront(ShapeList* shapeList, uint32_t shapeID)
 
 void shapeListDeleteShape(ShapeList* shapeList, uint32_t shapeID)
 {
-	SVG_CHECK(shapeID < shapeList->m_NumShapes, "Invalid shape ID");
+	SSVG_CHECK(shapeID < shapeList->m_NumShapes, "Invalid shape ID");
 
 	shapeFree(&shapeList->m_Shapes[shapeID]);
 
@@ -292,7 +292,7 @@ void pathCalcBounds(const Path* path, float* bounds)
 	}
 
 	const PathCmd* cmd = path->m_Commands;
-	SVG_CHECK(cmd->m_Type == PathCmdType::MoveTo, "First path command must be MoveTo");
+	SSVG_CHECK(cmd->m_Type == PathCmdType::MoveTo, "First path command must be MoveTo");
 	bounds[0] = bounds[2] = cmd->m_Data[0];
 	bounds[1] = bounds[3] = cmd->m_Data[1];
 
@@ -402,7 +402,7 @@ void pathCalcBounds(const Path* path, float* bounds)
 			// Noop
 			break;
 		default:
-			SVG_CHECK(false, "Unknown path command");
+			SSVG_CHECK(false, "Unknown path command");
 			break;
 		}
 	}
@@ -410,7 +410,7 @@ void pathCalcBounds(const Path* path, float* bounds)
 
 float* pointListAllocPoints(PointList* ptList, uint32_t n)
 {
-	SVG_CHECK(n != 0, "Requested invalid number of points");
+	SSVG_CHECK(n != 0, "Requested invalid number of points");
 
 	if (ptList->m_NumPoints + n > ptList->m_Capacity) {
 		const uint32_t oldCapacity = ptList->m_Capacity;
@@ -473,7 +473,7 @@ void pointListCalcBounds(const PointList* ptList, float* bounds)
 void shapeAttrsSetID(ShapeAttributes* attrs, const bx::StringView& value)
 {
 	uint32_t maxLen = bx::min<uint32_t>(SSVG_CONFIG_ID_MAX_LEN - 1, value.getLength());
-	SVG_WARN((int32_t)maxLen >= value.getLength(), "id \"%.*s\" truncated to %d characters", value.getLength(), value.getPtr(), maxLen);
+	SSVG_WARN((int32_t)maxLen >= value.getLength(), "id \"%.*s\" truncated to %d characters", value.getLength(), value.getPtr(), maxLen);
 	bx::memCopy(&attrs->m_ID[0], value.getPtr(), maxLen);
 	attrs->m_ID[maxLen] = '\0';
 }
@@ -481,7 +481,7 @@ void shapeAttrsSetID(ShapeAttributes* attrs, const bx::StringView& value)
 void shapeAttrsSetFontFamily(ShapeAttributes* attrs, const bx::StringView& value)
 {
 	uint32_t maxLen = bx::min<uint32_t>(SSVG_CONFIG_FONT_FAMILY_MAX_LEN - 1, value.getLength());
-	SVG_WARN((int32_t)maxLen >= value.getLength(), "font-family \"%.*s\" truncated to %d characters", value.getLength(), value.getPtr(), maxLen);
+	SSVG_WARN((int32_t)maxLen >= value.getLength(), "font-family \"%.*s\" truncated to %d characters", value.getLength(), value.getPtr(), maxLen);
 	bx::memCopy(&attrs->m_FontFamily[0], value.getPtr(), maxLen);
 	attrs->m_FontFamily[maxLen] = '\0';
 }

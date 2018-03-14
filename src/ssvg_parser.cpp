@@ -4,6 +4,8 @@
 #include <bx/math.h>
 #include <float.h> // FLT_MAX
 
+BX_PRAGMA_DIAGNOSTIC_IGNORED_MSVC(4127) // conditional expression is constant
+
 namespace ssvg
 {
 extern bx::AllocatorI* s_Allocator;
@@ -37,7 +39,7 @@ inline uint8_t charToNibble(char ch)
 		return 10 + (ch - 'A');
 	}
 
-	SVG_WARN(false, "Invalid hex char %c", ch);
+	SSVG_WARN(false, "Invalid hex char %c", ch);
 
 	return 0;
 }
@@ -113,11 +115,11 @@ static void parserSkipTag(ParserState* parser)
 		parser->m_Ptr++;
 
 		if (ch == '/' && *parser->m_Ptr == '>') {
-			SVG_CHECK(numOpenBrackets != 0, "Unbalanced brackets");
+			SSVG_CHECK(numOpenBrackets != 0, "Unbalanced brackets");
 			parser->m_Ptr++;
 			--numOpenBrackets;
 		} else if (ch == '>') {
-			SVG_CHECK(numOpenBrackets != 0, "Unbalanced brackets");
+			SSVG_CHECK(numOpenBrackets != 0, "Unbalanced brackets");
 			--numOpenBrackets;
 			if (incLevelOnClose) {
 				++level;
@@ -126,7 +128,7 @@ static void parserSkipTag(ParserState* parser)
 		} else if (ch == '<') {
 			++numOpenBrackets;
 			if (*parser->m_Ptr == '/') {
-				SVG_CHECK(level != 0, "Unbalanched tags");
+				SSVG_CHECK(level != 0, "Unbalanched tags");
 				parser->m_Ptr++;
 				--level;
 				incLevelOnClose = false;
@@ -281,10 +283,10 @@ static bool parsePaint(const bx::StringView& str, Paint* paint)
 				const uint32_t rgb = ((uint32_t)r) | ((uint32_t)g << 8) | ((uint32_t)b << 16);
 				paint->m_ColorABGR |= rgb | (rgb << 4);
 			} else {
-				SVG_WARN(false, "Unknown hex color format %.*s", str.getLength(), str.getPtr());
+				SSVG_WARN(false, "Unknown hex color format %.*s", str.getLength(), str.getPtr());
 			}
 		} else {
-			SVG_WARN(false, "Unhandled paint value: %.*s", str.getLength(), str.getPtr());
+			SSVG_WARN(false, "Unhandled paint value: %.*s", str.getLength(), str.getPtr());
 		}
 	}
 
@@ -296,7 +298,7 @@ static const char* parseCoord(const char* str, const char* end, float* coord)
 {
 	const char* ptr = skipCommaWhitespace(str, end);
 
-	SVG_CHECK(ptr != end && !bx::isAlpha(*ptr), "Parse error");
+	SSVG_CHECK(ptr != end && !bx::isAlpha(*ptr), "Parse error");
 
 	*coord = (float)atof(ptr);
 
@@ -313,7 +315,7 @@ static const char* parseCoord(const char* str, const char* end, float* coord)
 		const char ch = *ptr;
 		if (!bx::isNumeric(ch)) {
 			if (ch == '.') {
-				SVG_CHECK(!dotFound, "Parse error: Multiple decimal places in coord!");
+				SSVG_CHECK(!dotFound, "Parse error: Multiple decimal places in coord!");
 				dotFound = true;
 			} else if (ch == 'e') {
 				expFound = true;
@@ -360,7 +362,7 @@ static bool parseViewBox(const bx::StringView& str, float* viewBox)
 // where type is an identifier and value is any kind of text
 static const char* parseTransformComponent(const char* str, const char* end, bx::StringView* type, bx::StringView* value)
 {
-	SVG_CHECK(bx::isAlpha(*str), "Parse error: Excepted identifier");
+	SSVG_CHECK(bx::isAlpha(*str), "Parse error: Excepted identifier");
 
 	const char* ptr = str;
 	while (ptr != end && bx::isAlpha(*ptr)) {
@@ -368,7 +370,7 @@ static const char* parseTransformComponent(const char* str, const char* end, bx:
 	}
 
 	if (ptr == end) {
-		SVG_CHECK(false, "Parse error: Transformation component ended early");
+		SSVG_CHECK(false, "Parse error: Transformation component ended early");
 		return nullptr;
 	}
 
@@ -377,7 +379,7 @@ static const char* parseTransformComponent(const char* str, const char* end, bx:
 	ptr = skipWhitespace(ptr, end);
 
 	if (*ptr != '(') {
-		SVG_CHECK(false, "Parse error: Expected '('");
+		SSVG_CHECK(false, "Parse error: Expected '('");
 		return nullptr;
 	}
 
@@ -391,10 +393,10 @@ static const char* parseTransformComponent(const char* str, const char* end, bx:
 	}
 
 	if (ptr == end) {
-		SVG_CHECK(false, "Parse error: Couldn't find closing parenthesis");
+		SSVG_CHECK(false, "Parse error: Couldn't find closing parenthesis");
 		return nullptr;
 	}
-	SVG_CHECK(*ptr == ')', "Parse error: Expected ')'");
+	SSVG_CHECK(*ptr == ')', "Parse error: Expected ')'");
 
 	const char* endPtr = ptr + 1;
 
@@ -422,7 +424,7 @@ static bool parseTransform(ParserState* parser, const bx::StringView& str, float
 
 		ptr = parseTransformComponent(ptr, end, &type, &value);
 		if (!ptr) {
-			SVG_CHECK(false, "Parse error");
+			SSVG_CHECK(false, "Parse error");
 			return false;
 		}
 
@@ -488,11 +490,11 @@ static bool parseTransform(ParserState* parser, const bx::StringView& str, float
 			const float angle_rad = bx::toRad(angle_deg);
 			comp[1] = bx::tan(angle_rad);
 		} else {
-			SVG_WARN(false, "Unknown transform component %.*s(%.*s)", type.getLength(), type.getPtr(), value.getLength(), value.getPtr());
+			SSVG_WARN(false, "Unknown transform component %.*s(%.*s)", type.getLength(), type.getPtr(), value.getLength(), value.getPtr());
 			valuePtr = valueEnd;
 		}
 
-		SVG_WARN(valuePtr == valueEnd, "Incomplete transformation parsing");
+		SSVG_WARN(valuePtr == valueEnd, "Incomplete transformation parsing");
 
 		transformMultiply(transform, comp);
 	}
@@ -515,7 +517,7 @@ bool pathFromString(Path* path, const bx::StringView& str)
 	while (ptr != end) {
 		char ch = *ptr;
 
-		SVG_CHECK(!bx::isSpace(ch) && ch != ',', "Parse error");
+		SSVG_CHECK(!bx::isSpace(ch) && ch != ',', "Parse error");
 
 		if (bx::isAlpha(ch)) {
 			++ptr;
@@ -717,7 +719,7 @@ bool pathFromString(Path* path, const bx::StringView& str)
 			lastX = cmd->m_Data[5];
 			lastY = cmd->m_Data[6];
 		} else {
-			SVG_WARN(false, "Encountered unknown path command");
+			SSVG_WARN(false, "Encountered unknown path command");
 			return false;
 		}
 
@@ -746,7 +748,7 @@ bool pointListFromString(PointList* ptList, const bx::StringView& str)
 
 static ParseAttr::Result parseGenericShapeAttribute(ParserState* parser, const bx::StringView& name, const bx::StringView& value, ShapeAttributes* attrs)
 {
-	SVG_WARN(bx::strCmp(name, "style", 5), "style attribute not supported");
+	SSVG_WARN(bx::strCmp(name, "style", 5), "style attribute not supported");
 
 	if (!bx::strCmp(name, "stroke", 6)) {
 		const bx::StringView partialName(name.getPtr() + 6, name.getLength() - 6);
@@ -812,7 +814,7 @@ static bool parseShape_Group(ParserState* parser, Shape* group)
 {
 	bool err = false;
 	while (!parserDone(parser) && !err) {
-		SVG_CHECK(!(parser->m_Ptr[0] == '/' && parser->m_Ptr[1] == '>'), "Empty group element");
+		SSVG_CHECK(!(parser->m_Ptr[0] == '/' && parser->m_Ptr[1] == '>'), "Empty group element");
 		if (parserExpectingChar(parser, '>')) {
 			break;
 		}
@@ -827,7 +829,7 @@ static bool parseShape_Group(ParserState* parser, Shape* group)
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
 				// No specific attributes for groups. Ignore it.
-				SVG_WARN(false, "Ignoring g attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
+				SSVG_WARN(false, "Ignoring g attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
 			}
 		}
 	}
@@ -843,7 +845,7 @@ static bool parseShape_Text(ParserState* parser, Shape* text)
 {
 	bool err = false;
 	while (!parserDone(parser) && !err) {
-		SVG_CHECK(!(parser->m_Ptr[0] == '/' && parser->m_Ptr[1] == '>'), "Empty text element");
+		SSVG_CHECK(!(parser->m_Ptr[0] == '/' && parser->m_Ptr[1] == '>'), "Empty text element");
 		if (parserExpectingChar(parser, '>')) {
 			break;
 		}
@@ -873,7 +875,7 @@ static bool parseShape_Text(ParserState* parser, Shape* text)
 						err = true;
 					}
 				} else {
-					SVG_WARN(false, "Ignoring text attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
+					SSVG_WARN(false, "Ignoring text attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
 				}
 			}
 		}
@@ -928,7 +930,7 @@ static bool parseShape_Path(ParserState* parser, Shape* path)
 				if (!bx::strCmp(name, "d", 1)) {
 					err = !pathFromString(&path->m_Path, value);
 				} else {
-					SVG_WARN(false, "Ignoring path attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
+					SSVG_WARN(false, "Ignoring path attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
 				}
 			}
 		}
@@ -980,7 +982,7 @@ static bool parseShape_Rect(ParserState* parser, Shape* rect)
 				} else if (!bx::strCmp(name, "y", 1)) {
 					err = !parseLength(parser, value, &rect->m_Rect.y);
 				} else {
-					SVG_WARN(false, "Ignoring rect attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
+					SSVG_WARN(false, "Ignoring rect attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
 				}
 			}
 		}
@@ -1026,7 +1028,7 @@ static bool parseShape_Circle(ParserState* parser, Shape* circle)
 				} else if (!bx::strCmp(name, "r", 1)) {
 					err = !parseLength(parser, value, &circle->m_Circle.r);
 				} else {
-					SVG_WARN(false, "Ignoring circle attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
+					SSVG_WARN(false, "Ignoring circle attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
 				}
 			}
 		}
@@ -1074,7 +1076,7 @@ static bool parseShape_Line(ParserState* parser, Shape* line)
 				} else if (!bx::strCmp(name, "y2", 2)) {
 					err = !parseLength(parser, value, &line->m_Line.y2);
 				} else {
-					SVG_WARN(false, "Ignoring line attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
+					SSVG_WARN(false, "Ignoring line attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
 				}
 			}
 		}
@@ -1122,7 +1124,7 @@ static bool parseShape_Ellipse(ParserState* parser, Shape* ellipse)
 				} else if (!bx::strCmp(name, "ry", 2)) {
 					err = !parseLength(parser, value, &ellipse->m_Ellipse.ry);
 				} else {
-					SVG_WARN(false, "Ignoring ellipse attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
+					SSVG_WARN(false, "Ignoring ellipse attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
 				}
 			}
 		}
@@ -1164,7 +1166,7 @@ static bool parseShape_PointList(ParserState* parser, Shape* shape)
 				if (!bx::strCmp(name, "points", 6)) {
 					err = !pointListFromString(&shape->m_PointList, value);
 				} else {
-					SVG_WARN(false, "Ignoring polygon/polyline attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
+					SSVG_WARN(false, "Ignoring polygon/polyline attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
 				}
 			}
 		}
@@ -1199,7 +1201,7 @@ static bool parseShapes(ParserState* parser, ShapeList* shapeList, const ShapeAt
 	};
 	static const uint32_t numParseFuncs = BX_COUNTOF(parseFuncs);
 
-	SVG_WARN(numParseFuncs == ShapeType::NumTypes, "Some shapes won't be parsed");
+	SSVG_WARN(numParseFuncs == ShapeType::NumTypes, "Some shapes won't be parsed");
 
 	bool err = false;
 
@@ -1219,7 +1221,7 @@ static bool parseShapes(ParserState* parser, ShapeList* shapeList, const ShapeAt
 		for (uint32_t i = 0; i < numParseFuncs; ++i) {
 			if (!bx::strCmp(tag, parseFuncs[i].tag, parseFuncs[i].tag.getLength())) {
 				Shape* shape = shapeListAllocShape(shapeList, parseFuncs[i].type, parentAttrs);
-				SVG_CHECK(shape != nullptr, "Shape allocation failed");
+				SSVG_CHECK(shape != nullptr, "Shape allocation failed");
 
 				err = !parseFuncs[i].parseFunc(parser, shape);
 				if (!err) {
@@ -1236,7 +1238,7 @@ static bool parseShapes(ParserState* parser, ShapeList* shapeList, const ShapeAt
 		}
 
 		if (!found) {
-			SVG_WARN(false, "Ignoring element %.*s", tag.getLength(), tag.getPtr());
+			SSVG_WARN(false, "Ignoring element %.*s", tag.getLength(), tag.getPtr());
 			parserSkipTag(parser);
 		}
 	}
@@ -1275,7 +1277,7 @@ static bool parseTag_svg(ParserState* parser, Image* img)
 					img->m_BaseProfile = BaseProfile::Tiny;
 				} else {
 					// Unknown base profile. Ignore.
-					SVG_WARN(false, "Unknown baseProfile \"%.*s\"", value.getLength(), value.getPtr());
+					SSVG_WARN(false, "Unknown baseProfile \"%.*s\"", value.getLength(), value.getPtr());
 				}
 			} else if (!bx::strCmp(name, "width", 5)) {
 				img->m_Width = (float)atof(value.getPtr());
@@ -1287,7 +1289,7 @@ static bool parseTag_svg(ParserState* parser, Image* img)
 				// Ignore. This is here in order to shut up the trace message below.
 			} else {
 				// Unknown attribute. Ignore it (parser has already moved forward)
-				SVG_WARN(false, "Ignoring svg attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
+				SSVG_WARN(false, "Ignoring svg attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
 			}
 		}
 	}
@@ -1341,7 +1343,7 @@ Image* imageLoad(const char* xmlStr)
 			} else if (!bx::strCmp(tag, "svg", 3)) {
 				err = !parseTag_svg(&parser, img);
 			} else {
-				SVG_WARN(false, "Ignoring unknown root tag %.*s", tag.getLength(), tag.getPtr());
+				SSVG_WARN(false, "Ignoring unknown root tag %.*s", tag.getLength(), tag.getPtr());
 				parserSkipTag(&parser);
 			}
 		}

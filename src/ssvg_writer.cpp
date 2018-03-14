@@ -37,7 +37,7 @@ static const char* baseProfileToString(BaseProfile::Enum bp)
 		return "tiny";
 	}
 
-	SVG_WARN(false, "Unknown baseProfile value");
+	SSVG_WARN(false, "Unknown baseProfile value");
 
 	return "full";
 }
@@ -53,7 +53,7 @@ static const char* lineJoinToString(LineJoin::Enum join)
 		return "round";
 	}
 
-	SVG_WARN(false, "Unknown stroke-linejoin value");
+	SSVG_WARN(false, "Unknown stroke-linejoin value");
 
 	return "miter";
 }
@@ -69,7 +69,7 @@ static const char* lineCapToString(LineCap::Enum cap)
 		return "Round";
 	}
 
-	SVG_WARN(false, "Unknown stroke-linecap value");
+	SSVG_WARN(false, "Unknown stroke-linecap value");
 
 	return "butt";
 }
@@ -85,7 +85,7 @@ static const char* textAnchorToString(TextAnchor::Enum anchor)
 		return "end";
 	}
 
-	SVG_WARN(false, "Unknown text-anchor value");
+	SSVG_WARN(false, "Unknown text-anchor value");
 
 	return "start";
 }
@@ -174,7 +174,7 @@ bool pathToString(const Path* path, bx::WriterI* writer)
 			bx::writePrintf(writer, "Z");
 			break;
 		default:
-			SVG_WARN(false, "Unknown path command");
+			SSVG_WARN(false, "Unknown path command");
 			break;
 		}
 	}
@@ -423,7 +423,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, const Shape
 				, shape->m_Text.m_String);
 			break;
 		default:
-			SVG_WARN(false, "Unknown shape type");
+			SSVG_WARN(false, "Unknown shape type");
 		}
 	}
 

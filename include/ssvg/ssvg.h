@@ -25,29 +25,29 @@
 #if SSVG_CONFIG_DEBUG
 #include <bx/debug.h>
 
-#define SVG_TRACE(_format, ...) \
+#define SSVG_TRACE(_format, ...) \
 	do { \
-		bx::debugPrintf(BX_FILE_LINE_LITERAL "SimpleSVG " _format "\n", ##__VA_ARGS__); \
+		bx::debugPrintf(BX_FILE_LINE_LITERAL "ssvg " _format "\n", ##__VA_ARGS__); \
 	} while(0)
 
-#define SVG_WARN(_condition, _format, ...) \
+#define SSVG_WARN(_condition, _format, ...) \
 	do { \
 		if (!(_condition) ) { \
-			SVG_TRACE(BX_FILE_LINE_LITERAL _format, ##__VA_ARGS__); \
+			SSVG_TRACE(BX_FILE_LINE_LITERAL _format, ##__VA_ARGS__); \
 		} \
 	} while(0)
 
-#define SVG_CHECK(_condition, _format, ...) \
+#define SSVG_CHECK(_condition, _format, ...) \
 	do { \
 		if (!(_condition) ) { \
-			SVG_TRACE(BX_FILE_LINE_LITERAL _format, ##__VA_ARGS__); \
+			SSVG_TRACE(BX_FILE_LINE_LITERAL _format, ##__VA_ARGS__); \
 			bx::debugBreak(); \
 		} \
 	} while(0)
 #else
-#define SVG_TRACE(_format, ...)
-#define SVG_WARN(_condition, _format, ...)
-#define SVG_CHECK(_condition, _format, ...)
+#define SSVG_TRACE(_format, ...)
+#define SSVG_WARN(_condition, _format, ...)
+#define SSVG_CHECK(_condition, _format, ...)
 #endif
 
 namespace bx
