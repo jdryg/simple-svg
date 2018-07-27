@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #ifndef SSVG_CONFIG_DEBUG
-#	define SSVG_CONFIG_DEBUG _DEBUG
+#	define SSVG_CONFIG_DEBUG 0
 #endif
 
 // NOTE: Those 2 are used as the sizes of m_ID and m_FontFamily in ShapeAttributes structs.
