@@ -352,7 +352,7 @@ static bool parseViewBox(const bx::StringView& str, float* viewBox)
 	ptr = parseCoord(ptr, end, &viewBox[0]);
 	ptr = parseCoord(ptr, end, &viewBox[1]);
 	ptr = parseCoord(ptr, end, &viewBox[2]);
-	ptr = parseCoord(ptr, end, &viewBox[3]);
+	parseCoord(ptr, end, &viewBox[3]);
 
 	return true;
 }

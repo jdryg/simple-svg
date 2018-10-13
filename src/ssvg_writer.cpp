@@ -210,14 +210,14 @@ static bool writeShapeAttributes(bx::WriterI* writer, const ShapeAttributes* att
 			bx::writePrintf(writer, "stroke=\"transparent\" ");
 		} else if (strokeType == PaintType::Color) {
 			const uint32_t abgr = attrs->m_StrokePaint.m_ColorABGR;
-			if (parentStrokeType != PaintType::Color || (parentStrokeType == PaintType::Color && parentAttrs->m_StrokePaint.m_ColorABGR != abgr)) {
+			if (parentStrokeType != PaintType::Color || parentAttrs->m_StrokePaint.m_ColorABGR != abgr) {
 				char hexColor[32];
 				colorToHexString(hexColor, 32, abgr);
 				bx::writePrintf(writer, "stroke=\"%s\" ", hexColor);
 			}
 		}
 
-		const bool saveExtra = !conditionalPaints || (conditionalPaints && strokeType != PaintType::None && strokeType != PaintType::Transparent);
+		const bool saveExtra = !conditionalPaints || (strokeType != PaintType::None && strokeType != PaintType::Transparent);
 		if (saveExtra) {
 			const float miterLimit = attrs->m_StrokeMiterLimit;
 			if (miterLimit >= 1.0f && parentAttrs->m_StrokeMiterLimit != miterLimit) {
@@ -256,14 +256,14 @@ static bool writeShapeAttributes(bx::WriterI* writer, const ShapeAttributes* att
 			bx::writePrintf(writer, "fill=\"transparent\" ");
 		} else if (fillType == PaintType::Color) {
 			const uint32_t abgr = attrs->m_FillPaint.m_ColorABGR;
-			if (parentFillType != PaintType::Color || (parentFillType == PaintType::Color && parentAttrs->m_FillPaint.m_ColorABGR != abgr)) {
+			if (parentFillType != PaintType::Color || parentAttrs->m_FillPaint.m_ColorABGR != abgr) {
 				char hexColor[32];
 				colorToHexString(hexColor, 32, abgr);
 				bx::writePrintf(writer, "fill=\"%s\" ", hexColor);
 			}
 		}
 
-		const bool saveExtra = !conditionalPaints || (conditionalPaints && fillType != PaintType::None && fillType != PaintType::Transparent);
+		const bool saveExtra = !conditionalPaints || (fillType != PaintType::None && fillType != PaintType::Transparent);
 		if (saveExtra) {
 			const float opacity = attrs->m_FillOpacity;
 			if (opacity >= 0.0f && opacity <= 1.0f && opacity != parentAttrs->m_FillOpacity) {
