@@ -592,6 +592,9 @@ bool shapeCopy(Shape* dst, const Shape* src, bool copyAttrs)
 		dstText->m_String[len] = '\0';
 	}
 	break;
+	default:
+		SSVG_CHECK(false, "Unknown shape type");
+		return false;
 	}
 
 	return true;
@@ -613,6 +616,8 @@ void shapeFree(Shape* shape)
 	case ShapeType::Text:
 		BX_FREE(s_Allocator, shape->m_Text.m_String);
 		shape->m_Text.m_String = nullptr;
+		break;
+	default:
 		break;
 	}
 }
@@ -676,6 +681,8 @@ void shapeUpdateBounds(Shape* shape)
 		break;
 	case ShapeType::Text:
 		// TODO: This is complicated!
+		break;
+	default:
 		break;
 	}
 

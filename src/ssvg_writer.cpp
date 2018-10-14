@@ -35,6 +35,8 @@ static const char* baseProfileToString(BaseProfile::Enum bp)
 		return "full";
 	case BaseProfile::Tiny:
 		return "tiny";
+	default:
+		break;
 	}
 
 	SSVG_WARN(false, "Unknown baseProfile value");
