@@ -2,6 +2,8 @@
 #include <bx/bx.h>
 #include <bx/string.h>
 
+BX_PRAGMA_DIAGNOSTIC_IGNORED_GCC("-Wmaybe-uninitialized")
+
 namespace ssvg
 {
 uint32_t shapeListAddShape(ShapeList* shapeList, const Shape* shape)
