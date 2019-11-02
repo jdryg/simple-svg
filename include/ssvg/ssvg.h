@@ -7,15 +7,16 @@
 #	define SSVG_CONFIG_DEBUG 0
 #endif
 
-// NOTE: Those 2 are used as the sizes of m_ID and m_FontFamily in ShapeAttributes structs.
-// Setting both to 16 chars makes ShapeAttributes 100 bytes long, which in turn makes the Shape struct 128 bytes long.
-// (This is only guaranteed to be true at the time of writing this comment)
 #ifndef SSVG_CONFIG_ID_MAX_LEN
 #	define SSVG_CONFIG_ID_MAX_LEN  16
 #endif
 
 #ifndef SSVG_CONFIG_FONT_FAMILY_MAX_LEN
 #	define SSVG_CONFIG_FONT_FAMILY_MAX_LEN  16
+#endif
+
+#ifndef SSVG_CONFIG_CLASS_MAX_LEN
+#	define SSVG_CONFIG_CLASS_MAX_LEN 0
 #endif
 
 #ifndef SSVG_CONFIG_MINIFY_PATHS
@@ -143,6 +144,15 @@ struct LineCap
 	};
 };
 
+struct FillRule
+{
+	enum Enum : uint32_t
+	{
+		NonZero,
+		EvenOdd
+	};
+};
+
 struct ShapeList
 {
 	Shape* m_Shapes;
@@ -234,10 +244,15 @@ struct ShapeAttributes
 	float m_StrokeWidth;
 	float m_FillOpacity;
 	float m_FontSize;
+	float m_Opacity;
 	LineJoin::Enum m_StrokeLineJoin;
 	LineCap::Enum m_StrokeLineCap;
+	FillRule::Enum m_FillRule;
 	char m_ID[SSVG_CONFIG_ID_MAX_LEN];
 	char m_FontFamily[SSVG_CONFIG_FONT_FAMILY_MAX_LEN];
+#if SSVG_CONFIG_CLASS_MAX_LEN
+	char m_Class[SSVG_CONFIG_CLASS_MAX_LEN];
+#endif
 };
 
 struct Shape
@@ -318,6 +333,7 @@ void pointListCalcBounds(const PointList* ptList, float* bounds);
 
 void shapeAttrsSetID(ShapeAttributes* attrs, const bx::StringView& id);
 void shapeAttrsSetFontFamily(ShapeAttributes* attrs, const bx::StringView& fontFamily);
+void shapeAttrsSetClass(ShapeAttributes* attrs, const bx::StringView& c);
 
 void shapeFree(Shape* shape);
 bool shapeCopy(Shape* dst, const Shape* src, bool copyAttrs = true);

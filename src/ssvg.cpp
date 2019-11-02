@@ -486,6 +486,16 @@ void shapeAttrsSetFontFamily(ShapeAttributes* attrs, const bx::StringView& value
 	attrs->m_FontFamily[maxLen] = '\0';
 }
 
+void shapeAttrsSetClass(ShapeAttributes* attrs, const bx::StringView& value)
+{
+#if SSVG_CONFIG_CLASS_MAX_LEN
+	uint32_t maxLen = bx::min<uint32_t>(SSVG_CONFIG_CLASS_MAX_LEN - 1, value.getLength());
+	SSVG_WARN((int32_t)maxLen >= value.getLength(), "class \"%.*s\" truncated to %d characters", value.getLength(), value.getPtr(), maxLen);
+	bx::memCopy(&attrs->m_Class[0], value.getPtr(), maxLen);
+	attrs->m_Class[maxLen] = '\0';
+#endif
+}
+
 Image* imageCreate()
 {
 	Image* img = (Image*)BX_ALLOC(s_Allocator, sizeof(Image));

@@ -28,6 +28,7 @@ struct ParserState
 };
 
 static bool parseShapes(ParserState* parser, ShapeList* shapeList, const ShapeAttributes* parentAttrs, const char* closingTag, uint32_t closingTagLen);
+static const char* parseCoord(const char* str, const char* end, float* coord);
 
 inline uint8_t charToNibble(char ch)
 {
@@ -285,6 +286,27 @@ static bool parsePaint(const bx::StringView& str, Paint* paint)
 			} else {
 				SSVG_WARN(false, "Unknown hex color format %.*s", str.getLength(), str.getPtr());
 			}
+		} else if (!bx::strCmp(str, "rgb(", 4)) {
+			// TODO: This doesn't work with percentages.
+			float color[3];
+			const char* end = str.getTerm();
+			ptr += 4;
+			ptr = parseCoord(ptr, end, &color[0]);
+			ptr = parseCoord(ptr, end, &color[1]);
+			ptr = parseCoord(ptr, end, &color[2]);
+
+			paint->m_ColorABGR |= ((uint32_t)color[0]) | ((uint32_t)color[1] << 8) | ((uint32_t)color[2] << 16);
+		} else if (!bx::strCmp(str, "rgba(", 5)) {
+			// TODO: This doesn't work with percentages.
+			float color[4];
+			const char* end = str.getTerm();
+			ptr += 5;
+			ptr = parseCoord(ptr, end, &color[0]);
+			ptr = parseCoord(ptr, end, &color[1]);
+			ptr = parseCoord(ptr, end, &color[2]);
+			ptr = parseCoord(ptr, end, &color[3]);
+
+			paint->m_ColorABGR = ((uint32_t)color[0]) | ((uint32_t)color[1] << 8) | ((uint32_t)color[2] << 16) | ((uint32_t)(color[3] * 255.0f) << 24);
 		} else {
 			SSVG_WARN(false, "Unhandled paint value: %.*s", str.getLength(), str.getPtr());
 		}
@@ -791,6 +813,16 @@ static ParseAttr::Result parseGenericShapeAttribute(ParserState* parser, const b
 			return parsePaint(value, &attrs->m_FillPaint) ? ParseAttr::OK : ParseAttr::Fail;
 		} else if (!bx::strCmp(partialName, "-opacity", 8)) {
 			return parseNumber(value, &attrs->m_FillOpacity, 0.0f, 1.0f) ? ParseAttr::OK : ParseAttr::Fail;
+		} else if (!bx::strCmp(partialName, "-rule", 5)) {
+			if (!bx::strCmp(value, "nonzero", 7)) {
+				attrs->m_FillRule = FillRule::NonZero;
+			} else if (!bx::strCmp(value, "evenodd")) {
+				attrs->m_FillRule = FillRule::EvenOdd;
+			} else {
+				return ParseAttr::Fail;
+			}
+
+			return ParseAttr::OK;
 		}
 	} else if (!bx::strCmp(name, "font", 4)) {
 		const bx::StringView partialName(name.getPtr() + 4, name.getLength() - 4);
@@ -805,6 +837,13 @@ static ParseAttr::Result parseGenericShapeAttribute(ParserState* parser, const b
 	} else if (!bx::strCmp(name, "id", 2)) {
 		shapeAttrsSetID(attrs, value);
 		return ParseAttr::OK;
+	} else if (!bx::strCmp(name, "class", 5)) {
+#if SSVG_CONFIG_CLASS_MAX_LEN
+		shapeAttrsSetClass(attrs, value);
+#endif
+		return ParseAttr::OK;
+	} else if (!bx::strCmp(name, "opacity", 7)) {
+		return parseNumber(value, &attrs->m_Opacity, 0.0f, 1.0f) ? ParseAttr::OK : ParseAttr::Fail;
 	}
 
 	return ParseAttr::Unknown;

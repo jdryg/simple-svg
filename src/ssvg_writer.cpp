@@ -15,13 +15,15 @@ struct SaveAttr
 		Stroke = 0x00000004,
 		Fill = 0x00000008,
 		Font = 0x00000010,
+		Class = 0x00000020,
+		Opacity = 0x00000040,
 
 		ConditionalPaints = 0x80000000, // If set, and PaintType == None || Transparent don't save stroke-width, stroke-opacity, etc.
 
 		// Common combinations
 		Unique = Transform | ID,
 		Shape = Unique | Stroke | Fill,
-		All = Shape | Font,
+		All = Shape | Font | Class | Opacity,
 		Text = Unique | Fill | Font | ConditionalPaints
 	};
 };
@@ -90,6 +92,20 @@ static const char* textAnchorToString(TextAnchor::Enum anchor)
 	SSVG_WARN(false, "Unknown text-anchor value");
 
 	return "start";
+}
+
+static const char* fillRuleToString(FillRule::Enum rule)
+{
+	switch (rule) {
+	case FillRule::NonZero:
+		return "nonzero";
+	case FillRule::EvenOdd:
+		return "evenodd";
+	}
+
+	SSVG_WARN(false, "Unknown fill-rule value");
+
+	return "nonzero";
 }
 
 static bool transformIsIdentity(const float* transform)
@@ -173,6 +189,12 @@ static bool writeShapeAttributes(bx::WriterI* writer, const ShapeAttributes* att
 		bx::write(writer, &err, "id=\"%s\" ", attrs->m_ID);
 	}
 
+#if SSVG_CONFIG_CLASS_MAX_LEN
+	if ((flags & SaveAttr::Class) != 0 && attrs->m_Class[0] != '\0') {
+		bx::write(writer, &err, "class=\"%s\" ", attrs->m_Class);
+	}
+#endif
+
 	if ((flags & SaveAttr::Transform) != 0 && !transformIsIdentity(&attrs->m_Transform[0])) {
 		bx::write(writer, &err, "transform=\"matrix(%g,%g,%g,%g,%g,%g)\" "
 			, attrs->m_Transform[0]
@@ -252,6 +274,10 @@ static bool writeShapeAttributes(bx::WriterI* writer, const ShapeAttributes* att
 			if (opacity >= 0.0f && opacity <= 1.0f && opacity != parentAttrs->m_FillOpacity) {
 				bx::write(writer, &err, "fill-opacity=\"%g\" ", opacity);
 			}
+
+			if (attrs->m_FillRule != parentAttrs->m_FillRule) {
+				bx::write(writer, &err, "fill-rule=\"%s\" ", fillRuleToString(attrs->m_FillRule));
+			}
 		}
 	}
 
@@ -265,6 +291,10 @@ static bool writeShapeAttributes(bx::WriterI* writer, const ShapeAttributes* att
 		if (fontSize > 0.0f && fontSize != parentAttrs->m_FontSize) {
 			bx::write(writer, &err, "font-size=\"%g\" ", fontSize);
 		}
+	}
+
+	if ((flags & SaveAttr::Opacity) != 0 && attrs->m_Opacity != parentAttrs->m_Opacity) {
+		bx::write(writer, &err, "opacity=\"%g\" ", attrs->m_Opacity);
 	}
 
 	return true;
