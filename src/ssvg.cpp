@@ -493,6 +493,8 @@ void shapeAttrsSetClass(ShapeAttributes* attrs, const bx::StringView& value)
 	SSVG_WARN((int32_t)maxLen >= value.getLength(), "class \"%.*s\" truncated to %d characters", value.getLength(), value.getPtr(), maxLen);
 	bx::memCopy(&attrs->m_Class[0], value.getPtr(), maxLen);
 	attrs->m_Class[maxLen] = '\0';
+#else
+	BX_UNUSED(attrs, value);
 #endif
 }
 
