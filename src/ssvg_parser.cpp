@@ -25,6 +25,7 @@ struct ParserState
 {
 	const char* m_XMLString;
 	const char* m_Ptr;
+	uint32_t m_Flags;
 };
 
 static bool parseShapes(ParserState* parser, ShapeList* shapeList, const ShapeAttributes* parentAttrs, const char* closingTag, uint32_t closingTagLen);
@@ -322,48 +323,13 @@ static const char* parseCoord(const char* str, const char* end, float* coord)
 
 	SSVG_CHECK(ptr != end && !bx::isAlpha(*ptr), "Parse error");
 
-	*coord = (float)atof(ptr);
+	char* coordEnd;
+	*coord = strtof(ptr, &coordEnd);
 
-	// Skip optional sign
-	if (*ptr == '-' || *ptr == '+') {
-		++ptr;
-	}
+	SSVG_CHECK(coordEnd != nullptr, "Failed to parse coordinate");
+	SSVG_CHECK(coordEnd <= end, "strtof() read past end of buffer");
 
-	// Skip number
-	bool dotFound = false;
-	bool expFound = false;
-	BX_UNUSED(dotFound); // Used only in debug mode.
-	while (ptr != end) {
-		const char ch = *ptr;
-		if (!bx::isNumeric(ch)) {
-			if (ch == '.') {
-				SSVG_CHECK(!dotFound, "Parse error: Multiple decimal places in coord!");
-				dotFound = true;
-			} else if (ch == 'e') {
-				expFound = true;
-				++ptr;
-				break;
-			} else {
-				break;
-			}
-		}
-
-		++ptr;
-	}
-
-	if (expFound) {
-		// Parse the exponent.
-		// Skip optional sign
-		if (*ptr == '-' || *ptr == '+') {
-			++ptr;
-		}
-
-		while (ptr != end && bx::isNumeric(*ptr)) {
-			++ptr;
-		}
-	}
-
-	return skipCommaWhitespace(ptr, end);
+	return skipCommaWhitespace(coordEnd, end);
 }
 
 static bool parseViewBox(const bx::StringView& str, float* viewBox)
@@ -1201,9 +1167,37 @@ static bool parseShape_PointList(ParserState* parser, Shape* shape)
 			if (res == ParseAttr::Fail) {
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
-				// Ellipse specific attributes.
 				if (!bx::strCmp(name, "points", 6)) {
-					err = !pointListFromString(&shape->m_PointList, value);
+					PointList ptList;
+					bx::memSet(&ptList, 0, sizeof(PointList));
+					err = !pointListFromString(&ptList, value);
+
+					if (!err && ptList.m_NumPoints >= 2 &&
+						(shape->m_Type == ShapeType::Polygon && (parser->m_Flags & ImageLoadFlags::ConvertPolygonsToPaths) != 0) ||
+						(shape->m_Type == ShapeType::Polyline && (parser->m_Flags & ImageLoadFlags::ConvertPolylinesToPaths) != 0)) 
+					{
+						const float* coords = ptList.m_Coords;
+
+						Path* path = &shape->m_Path;
+						PathCmd* cmd = pathAllocCommand(path, PathCmdType::MoveTo);
+						cmd->m_Data[0] = *coords++;
+						cmd->m_Data[1] = *coords++;
+
+						for (uint32_t i = 1; i < ptList.m_NumPoints; ++i) {
+							cmd = pathAllocCommand(path, PathCmdType::LineTo);
+							cmd->m_Data[0] = *coords++;
+							cmd->m_Data[1] = *coords++;
+						}
+
+						if (shape->m_Type == ShapeType::Polygon) {
+							pathAllocCommand(path, PathCmdType::ClosePath);
+						}
+
+						pointListFree(&ptList);
+						shape->m_Type = ShapeType::Path;
+					} else {
+						bx::memCopy(&shape->m_PointList, &ptList, sizeof(PointList));
+					}
 				} else {
 					SSVG_WARN(false, "Ignoring polygon/polyline attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
 				}
@@ -1340,7 +1334,7 @@ static bool parseTag_svg(ParserState* parser, Image* img)
 	return parseShapes(parser, &img->m_ShapeList, &s_DefaultAttrs, "</svg>", 6);
 }
 
-Image* imageLoad(const char* xmlStr)
+Image* imageLoad(const char* xmlStr, uint32_t flags)
 {
 	if (!xmlStr || *xmlStr == 0) {
 		return nullptr;
@@ -1351,6 +1345,7 @@ Image* imageLoad(const char* xmlStr)
 	ParserState parser;
 	parser.m_XMLString = xmlStr;
 	parser.m_Ptr = xmlStr;
+	parser.m_Flags = flags;
 
 	bool err = false;
 	while (!parserDone(&parser) && !err) {

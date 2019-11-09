@@ -285,9 +285,22 @@ struct Image
 	uint16_t m_VerMinor;
 };
 
+struct ImageLoadFlags
+{
+	enum Enum : uint32_t
+	{
+		ConvertPolygonsToPaths = 1 << 0,
+		ConvertPolylinesToPaths = 1 << 1,
+		ConvertQuadToCubicBezier = 1 << 2,
+		ConvertArcToCubicBezier = 1 << 3,
+		CalcShapeBounds = 1 << 4,
+		CalcPathConvexity = 1 << 5,
+	};
+};
+
 void initLib(bx::AllocatorI* allocator, const ShapeAttributes* defaultAttrs);
 
-Image* imageLoad(const char* xmlStr);
+Image* imageLoad(const char* xmlStr, uint32_t flags);
 bool imageSave(const Image* img, bx::WriterI* writer);
 Image* imageCreate();
 void imageDestroy(Image* img);
