@@ -326,7 +326,7 @@ PathCmd* pathAllocCommand(Path* path, PathCmdType::Enum type);
 PathCmd* pathAllocCommands(Path* path, uint32_t n);
 void pathShrinkToFit(Path* path);
 void pathFree(Path* path);
-bool pathFromString(Path* path, const bx::StringView& str);
+bool pathFromString(Path* path, const bx::StringView& str, uint32_t flags);
 bool pathToString(const Path* path, bx::WriterI* writer);
 uint32_t pathMoveTo(Path* path, float x, float y);
 uint32_t pathLineTo(Path* path, float x, float y);

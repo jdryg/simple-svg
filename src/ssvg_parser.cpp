@@ -490,7 +490,7 @@ static bool parseTransform(ParserState* parser, const bx::StringView& str, float
 	return true;
 }
 
-bool pathFromString(Path* path, const bx::StringView& str)
+bool pathFromString(Path* path, const bx::StringView& str, uint32_t flags)
 {
 	const char* ptr = str.getPtr();
 	const char* end = str.getTerm();
@@ -658,6 +658,10 @@ bool pathFromString(Path* path, const bx::StringView& str)
 			lastCPY = cmd->m_Data[1];
 			lastX = cmd->m_Data[2];
 			lastY = cmd->m_Data[3];
+
+			if ((flags & ImageLoadFlags::ConvertQuadToCubicBezier) != 0) {
+				pathConvertCommand(path, (uint32_t)(cmd - path->m_Commands), PathCmdType::CubicTo);
+			}
 		} else if (lch == 't') {
 			// QuadraticTo abs
 			PathCmd* cmd = pathAllocCommand(path, PathCmdType::QuadraticTo);
@@ -688,6 +692,10 @@ bool pathFromString(Path* path, const bx::StringView& str)
 			lastCPY = cmd->m_Data[1];
 			lastX = cmd->m_Data[2];
 			lastY = cmd->m_Data[3];
+
+			if ((flags & ImageLoadFlags::ConvertQuadToCubicBezier) != 0) {
+				pathConvertCommand(path, (uint32_t)(cmd - path->m_Commands), PathCmdType::CubicTo);
+			}
 		} else if (lch == 'a') {
 			// ArcTo abs
 			PathCmd* cmd = pathAllocCommand(path, PathCmdType::ArcTo);
@@ -933,7 +941,7 @@ static bool parseShape_Path(ParserState* parser, Shape* path)
 			} else if (res == ParseAttr::Unknown) {
 				// Path specific attributes.
 				if (!bx::strCmp(name, "d", 1)) {
-					err = !pathFromString(&path->m_Path, value);
+					err = !pathFromString(&path->m_Path, value, parser->m_Flags);
 				} else {
 					SSVG_WARN(false, "Ignoring path attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
 				}
@@ -1238,6 +1246,8 @@ static bool parseShapes(ParserState* parser, ShapeList* shapeList, const ShapeAt
 
 	bool err = false;
 
+	const bool calcBounds = (parser->m_Flags & ImageLoadFlags::CalcShapeBounds) != 0;
+
 	// Parse until the end-of-buffer
 	while (!parserDone(parser)) {
 		if (parserMatchString(parser, closingTag, closingTagLen)) {
@@ -1257,7 +1267,7 @@ static bool parseShapes(ParserState* parser, ShapeList* shapeList, const ShapeAt
 				SSVG_CHECK(shape != nullptr, "Shape allocation failed");
 
 				err = !parseFuncs[i].parseFunc(parser, shape);
-				if (!err) {
+				if (!err && calcBounds) {
 					shapeUpdateBounds(shape);
 				}
 

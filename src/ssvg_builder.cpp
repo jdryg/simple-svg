@@ -374,6 +374,27 @@ void pathConvertCommand(Path* path, uint32_t cmdID, PathCmdType::Enum newType)
 			cmd->m_Type = PathCmdType::LineTo;
 			cmd->m_Data[0] = cmd->m_Data[2];
 			cmd->m_Data[1] = cmd->m_Data[3];
+		} else if(newType == PathCmdType::CubicTo) {
+			float last[2];
+			pathCmdGetEndPoint(prevCmd, &last[0]);
+
+			const float cx = cmd->m_Data[0];
+			const float cy = cmd->m_Data[1];
+			const float x = cmd->m_Data[2];
+			const float y = cmd->m_Data[3];
+
+			const float c1x = last[0] + (2.0f / 3.0f) * (cx - last[0]);
+			const float c1y = last[1] + (2.0f / 3.0f) * (cy - last[1]);
+			const float c2x = x + (2.0f / 3.0f) * (cx - x);
+			const float c2y = y + (2.0f / 3.0f) * (cy - y);
+
+			cmd->m_Type = PathCmdType::CubicTo;
+			cmd->m_Data[0] = c1x;
+			cmd->m_Data[1] = c1y;
+			cmd->m_Data[2] = c2x;
+			cmd->m_Data[3] = c2y;
+			cmd->m_Data[4] = x;
+			cmd->m_Data[5] = y;
 		} else {
 			SSVG_WARN(false, "Path command conversion not implemented yet.");
 		}
