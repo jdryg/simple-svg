@@ -209,6 +209,19 @@ PathCmd* pathAllocCommand(Path* path, PathCmdType::Enum type)
 	return cmd;
 }
 
+PathCmd* pathInsertCommands(Path* path, uint32_t at, uint32_t n)
+{
+	if (at == path->m_NumCommands) {
+		// Insert at the end == alloc
+		return pathAllocCommands(path, n);
+	}
+
+	const uint32_t numOldCommands = path->m_NumCommands;
+	pathAllocCommands(path, n);
+	bx::memMove(&path->m_Commands[at + n], &path->m_Commands[at], sizeof(PathCmd) * (numOldCommands - at));
+	return &path->m_Commands[at];
+}
+
 void pathShrinkToFit(Path* path)
 {
 	if (!path->m_NumCommands && path->m_Capacity) {

@@ -714,6 +714,10 @@ bool pathFromString(Path* path, const bx::StringView& str, uint32_t flags)
 
 			lastX = cmd->m_Data[5];
 			lastY = cmd->m_Data[6];
+
+			if ((flags & ImageLoadFlags::ConvertArcToCubicBezier) != 0) {
+				pathConvertCommand(path, (uint32_t)(cmd - path->m_Commands), PathCmdType::CubicTo);
+			}
 		} else {
 			SSVG_WARN(false, "Encountered unknown path command");
 			return false;

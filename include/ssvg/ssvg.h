@@ -324,6 +324,7 @@ void shapeListDeleteShape(ShapeList* shapeList, uint32_t shapeID);
 
 PathCmd* pathAllocCommand(Path* path, PathCmdType::Enum type);
 PathCmd* pathAllocCommands(Path* path, uint32_t n);
+PathCmd* pathInsertCommands(Path* path, uint32_t at, uint32_t n);
 void pathShrinkToFit(Path* path);
 void pathFree(Path* path);
 bool pathFromString(Path* path, const bx::StringView& str, uint32_t flags);
