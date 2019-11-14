@@ -1250,8 +1250,6 @@ static bool parseShapes(ParserState* parser, ShapeList* shapeList, const ShapeAt
 
 	bool err = false;
 
-	const bool calcBounds = (parser->m_Flags & ImageLoadFlags::CalcShapeBounds) != 0;
-
 	// Parse until the end-of-buffer
 	while (!parserDone(parser)) {
 		if (parserMatchString(parser, closingTag, closingTagLen)) {
@@ -1271,10 +1269,6 @@ static bool parseShapes(ParserState* parser, ShapeList* shapeList, const ShapeAt
 				SSVG_CHECK(shape != nullptr, "Shape allocation failed");
 
 				err = !parseFuncs[i].parseFunc(parser, shape);
-				if (!err && calcBounds) {
-					shapeUpdateBounds(shape);
-				}
-
 				found = true;
 				break;
 			}
@@ -1390,6 +1384,9 @@ Image* imageLoad(const char* xmlStr, uint32_t flags)
 				err = parserDone(&parser);
 			} else if (!bx::strCmp(tag, "svg", 3)) {
 				err = !parseTag_svg(&parser, img);
+				if (!err && (parser.m_Flags & ImageLoadFlags::CalcShapeBounds) != 0) {
+					shapeListCalcBounds(&img->m_ShapeList, &img->m_BoundingRect[0]);
+				}
 			} else {
 				SSVG_WARN(false, "Ignoring unknown root tag %.*s", tag.getLength(), tag.getPtr());
 				parserSkipTag(&parser);

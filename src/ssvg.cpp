@@ -184,6 +184,29 @@ void shapeListDeleteShape(ShapeList* shapeList, uint32_t shapeID)
 	shapeList->m_NumShapes--;
 }
 
+void shapeListCalcBounds(ShapeList* shapeList, float* bounds)
+{
+	bounds[0] = FLT_MAX;
+	bounds[1] = FLT_MAX;
+	bounds[2] = -FLT_MAX;
+	bounds[3] = -FLT_MAX;
+	const uint32_t numShapes = shapeList->m_NumShapes;
+	for (uint32_t i = 0; i < numShapes; ++i) {
+		Shape* shape = &shapeList->m_Shapes[i];
+		shapeUpdateBounds(shape);
+
+		// Since this is a group, the child's bounding rect should be transformed using its
+		// transformation matrix before calculating the group's local bounding rect.
+		float childTransformedRect[4];
+		transformBoundingRect(&shape->m_Attrs.m_Transform[0], &shape->m_BoundingRect[0], &childTransformedRect[0]);
+
+		bounds[0] = bx::min<float>(bounds[0], childTransformedRect[0]);
+		bounds[1] = bx::min<float>(bounds[1], childTransformedRect[1]);
+		bounds[2] = bx::max<float>(bounds[2], childTransformedRect[2]);
+		bounds[3] = bx::max<float>(bounds[3], childTransformedRect[3]);
+	}
+}
+
 PathCmd* pathAllocCommands(Path* path, uint32_t n)
 {
 	if (path->m_NumCommands + n > path->m_Capacity) {
@@ -654,25 +677,8 @@ void shapeUpdateBounds(Shape* shape)
 	const ShapeType::Enum type = shape->m_Type;
 	switch (type) {
 	case ShapeType::Group:
-	{
-		ShapeList* children = &shape->m_ShapeList;
-		const uint32_t numChildren = children->m_NumShapes;
-		for (uint32_t i = 0; i < numChildren; ++i) {
-			Shape* child = &children->m_Shapes[i];
-			shapeUpdateBounds(child);
-
-			// Since this is a group, the child's bounding rect should be transformed using its
-			// transformation matrix before calculating the group's local bounding rect.
-			float childTransformedRect[4];
-			transformBoundingRect(&child->m_Attrs.m_Transform[0], &child->m_BoundingRect[0], &childTransformedRect[0]);
-
-			bounds[0] = bx::min<float>(bounds[0], childTransformedRect[0]);
-			bounds[1] = bx::min<float>(bounds[1], childTransformedRect[1]);
-			bounds[2] = bx::max<float>(bounds[2], childTransformedRect[2]);
-			bounds[3] = bx::max<float>(bounds[3], childTransformedRect[3]);
-		}
-	}
-	break;
+		shapeListCalcBounds(&shape->m_ShapeList, &bounds[0]);
+		break;
 	case ShapeType::Rect:
 		bounds[0] = shape->m_Rect.x;
 		bounds[1] = shape->m_Rect.y;

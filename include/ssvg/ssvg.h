@@ -280,6 +280,7 @@ struct Image
 	float m_Width;
 	float m_Height;
 	float m_ViewBox[4];
+	float m_BoundingRect[4];
 	BaseProfile::Enum m_BaseProfile;
 	uint16_t m_VerMajor;
 	uint16_t m_VerMinor;
@@ -321,6 +322,7 @@ uint32_t shapeListAddText(ShapeList* shapeList, const ShapeAttributes* parentAtt
 uint32_t shapeListMoveShapeToBack(ShapeList* shapeList, uint32_t shapeID);
 uint32_t shapeListMoveShapeToFront(ShapeList* shapeList, uint32_t shapeID);
 void shapeListDeleteShape(ShapeList* shapeList, uint32_t shapeID);
+void shapeListCalcBounds(ShapeList* shapeList, float* bounds);
 
 PathCmd* pathAllocCommand(Path* path, PathCmdType::Enum type);
 PathCmd* pathAllocCommands(Path* path, uint32_t n);
