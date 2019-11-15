@@ -28,8 +28,57 @@ struct ParserState
 	uint32_t m_Flags;
 };
 
+struct CSSColor
+{
+	bx::StringView m_Name;
+	uint32_t m_ABGR;
+};
+
+static const CSSColor kCSSColors[] = {
+	{ "black",            0xFF000000 }, { "silver",               0xFFC0C0C0 }, { "gray",              0xFF808080 }, { "white",           0xFFFFFFFF }, 
+	{ "maroon",           0xFF000080 }, { "red",                  0xFF0000FF }, { "purple",            0xFF800080 }, { "fuchsia",         0xFFFF00FF }, 
+	{ "green",            0xFF008000 }, { "lime",                 0xFF00FF00 }, { "olive",             0xFF008080 }, { "yellow",          0xFF00FFFF }, 
+	{ "navy",             0xFF800000 }, { "blue",                 0xFFFF0000 }, { "teal",              0xFF808000 }, { "aqua",            0xFFFFFF00 }, 
+	{ "orange",           0xFF00A5FF }, { "aliceblue",            0xFFFFF8F0 }, { "antiquewhite",      0xFFD7EBFA }, { "aquamarine",      0xFFD4FF7F }, 
+	{ "azure",            0xFFFFFFF0 }, { "beige",                0xFFDCF5F5 }, { "bisque",            0xFFC4E4FF }, { "blanchedalmond",  0xFFCDEBFF }, 
+	{ "blueviolet",       0xFFE22B8A }, { "brown",                0xFF2A2AA5 }, { "burlywood",         0xFF87B8DE }, { "cadetblue",       0xFFA09E5F }, 
+	{ "chartreuse",       0xFF00FF7F }, { "chocolate",            0xFF1E69D2 }, { "coral",             0xFF507FFF }, { "cornflowerblue",  0xFFED9564 }, 
+	{ "cornsilk",         0xFFDCF8FF }, { "crimson",              0xFF3C14DC }, { "cyan",              0xFFFFFF00 }, { "darkblue",        0xFF8B0000 }, 
+	{ "darkcyan",         0xFF8B8B00 }, { "darkgoldenrod",        0xFF0B86B8 }, { "darkgray",          0xFFA9A9A9 }, { "darkgreen",       0xFF006400 },
+	{ "darkgrey",         0xFFA9A9A9 }, { "darkkhaki",            0xFF6BB7BD }, { "darkmagenta",       0xFF8B008B }, { "darkolivegreen",  0xFF2F6B55 }, 
+	{ "darkorange",       0xFF008CFF }, { "darkorchid",           0xFFCC3299 }, { "darkred",           0xFF00008B }, { "darksalmon",      0xFF7A96E9 }, 
+	{ "darkseagreen",     0xFF8FBC8F }, { "darkslateblue",        0xFF8B3D48 }, { "darkslategray",     0xFF4F4F2F }, { "darkslategrey",   0xFF4F4F2F }, 
+	{ "darkturquoise",    0xFFD1CE00 }, { "darkviolet",           0xFFD30094 }, { "deeppink",          0xFF9314FF }, { "deepskyblue",     0xFFFFBF00 }, 
+	{ "dimgray",          0xFF696969 }, { "dimgrey",              0xFF696969 }, { "dodgerblue",        0xFFFF901E }, { "firebrick",       0xFF2222B2 },
+	{ "floralwhite",      0xFFF0FAFF }, { "forestgreen",          0xFF228B22 }, { "gainsboro",         0xFFDCDCDC }, { "ghostwhite",      0xFFFFF8F8 }, 
+	{ "gold",             0xFF00D7FF }, { "goldenrod",            0xFF20A5DA }, { "greenyellow",       0xFF2FFFAD }, { "grey",            0xFF808080 }, 
+	{ "honeydew",         0xFFF0FFF0 }, { "hotpink",              0xFFB469FF }, { "indianred",         0xFF5C5CCD }, { "indigo",          0xFF82004B }, 
+	{ "ivory",            0xFFF0FFFF }, { "khaki",                0xFF8CE6F0 }, { "lavender",          0xFFF1E6E6 }, { "lavenderblush",   0xFFF5F0FF }, 
+	{ "lawngreen",        0xFF00FC7C }, { "lemonchiffon",         0xFFCDFAFF }, { "lightblue",         0xFFE6D8AD }, { "lightcoral",      0xFF8080F0 },
+	{ "lightcyan",        0xFFFFFFE0 }, { "lightgoldenrodyellow", 0xFFD2FAFA }, { "lightgray",         0xFFD3D3D3 }, { "lightgreen",      0xFF90EE90 }, 
+	{ "lightgrey",        0xFFD3D3D3 }, { "lightpink",            0xFFC1B6FF }, { "lightsalmon",       0xFF7AA0FF }, { "lightseagreen",   0xFFAAB220 }, 
+	{ "lightskyblue",     0xFFFACE87 }, { "lightslategray",       0xFF778899 }, { "lightslategrey",    0xFF778899 }, { "lightsteelblue",  0xFFDEC4B0 }, 
+	{ "lightyellow",      0xFFE0FFFF }, { "limegreen",            0xFF32CD32 }, { "linen",             0xFFE6F0FA }, { "magenta",         0xFFFF00FF }, 
+	{ "mediumaquamarine", 0xFFAACD66 }, { "mediumblue",           0xFFCD0000 }, { "mediumorchid",      0xFFD355BA }, { "mediumpurple",    0xFFDB7093 },
+	{ "mediumseagreen",   0xFF71B33C }, { "mediumslateblue",      0xFFEE687B }, { "mediumspringgreen", 0xFF9AFA00 }, { "mediumturquoise", 0xFFCCD148 }, 
+	{ "mediumvioletred",  0xFF8515C7 }, { "midnightblue",         0xFF701919 }, { "mintcream",         0xFFFAFFF5 }, { "mistyrose",       0xFFE1E4FF }, 
+	{ "moccasin",         0xFFB5E4FF }, { "navajowhite",          0xFFADDEFF }, { "oldlace",           0xFFE6F5FD }, { "olivedrab",       0xFF238E6B }, 
+	{ "orangered",        0xFF0045FF }, { "orchid",               0xFFD670DA }, { "palegoldenrod",     0xFFAAE8EE }, { "palegreen",       0xFF98FB98 }, 
+	{ "paleturquoise",    0xFFEEEEAF }, { "palevioletred",        0xFF9370DB }, { "papayawhip",        0xFFF5EFFF }, { "peachpuff",       0xFFB9DAFF },
+	{ "peru",             0xFF3F85CD }, { "pink",                 0xFFCBC0FF }, { "plum",              0xFFDDA0DD }, { "powderblue",      0xFFE6E0B0 }, 
+	{ "rosybrown",        0xFF8F8FBC }, { "royalblue",            0xFFE16941 }, { "saddlebrown",       0xFF13458B }, { "salmon",          0xFF7280FA }, 
+	{ "sandybrown",       0xFF60A4F4 }, { "seagreen",             0xFF578B2E }, { "seashell",          0xFFEEF5FF }, { "sienna",          0xFF2D52A0 }, 
+	{ "skyblue",          0xFFEBCE87 }, { "slateblue",            0xFFCDA56A }, { "slategray",         0xFF908070 }, { "slategrey",       0xFF908070 }, 
+	{ "snow",             0xFFFAFAFF }, { "springgreen",          0xFF7FFF00 }, { "steelblue",         0xFFB48246 }, { "tan",             0xFF8CB4D2 },
+	{ "thistle",          0xFFD8BFD8 }, { "tomato",               0xFF4763FF }, { "turquoise",         0xFFD0E040 }, { "violet",          0xFFEE82EE }, 
+	{ "wheat",            0xFFB3DEF5 }, { "whitesmoke",           0xFFF5F5F5 }, { "yellowgreen",       0xFF32CD9A }, { "rebeccapurple",   0xFF993366 },
+};
+
+static const uint32_t kNumCSSColors = BX_COUNTOF(kCSSColors);
+
 static bool parseShapes(ParserState* parser, ShapeList* shapeList, const ShapeAttributes* parentAttrs, const char* closingTag, uint32_t closingTagLen);
 static const char* parseCoord(const char* str, const char* end, float* coord);
+static ParseAttr::Result parseGenericShapeAttribute(const bx::StringView& name, const bx::StringView& value, ShapeAttributes* attrs);
 
 inline uint8_t charToNibble(char ch)
 {
@@ -252,10 +301,9 @@ static bool parseNumber(const bx::StringView& str, float* val, float min = -FLT_
 	return true;
 }
 
-static bool parseLength(ParserState* parser, const bx::StringView& str, float* len)
+static bool parseLength(const bx::StringView& str, float* len)
 {
 	// TODO: Parse length units and convert to pixels based on parser state.
-	BX_UNUSED(parser);
 	return parseNumber(str, len);
 }
 
@@ -309,14 +357,25 @@ static bool parsePaint(const bx::StringView& str, Paint* paint)
 
 			paint->m_ColorABGR = ((uint32_t)color[0]) | ((uint32_t)color[1] << 8) | ((uint32_t)color[2] << 16) | ((uint32_t)(color[3] * 255.0f) << 24);
 		} else {
-			SSVG_WARN(false, "Unhandled paint value: %.*s", str.getLength(), str.getPtr());
+			// Check if it's a known color.
+			bool found = false;
+			for (uint32_t i = 0; i < kNumCSSColors; ++i) {
+				if (!bx::strCmp(str, kCSSColors[i].m_Name)) {
+					paint->m_ColorABGR = kCSSColors[i].m_ABGR;
+					found = true;
+					break;
+				}
+			}
+
+			if (!found) {
+				SSVG_WARN(false, "Unhandled paint value: %.*s", str.getLength(), str.getPtr());
+			}
 		}
 	}
 
 	return true;
 }
 
-// TODO: More tests!
 static const char* parseCoord(const char* str, const char* end, float* coord)
 {
 	const char* ptr = skipCommaWhitespace(str, end);
@@ -398,10 +457,8 @@ static const char* parseTransformComponent(const char* str, const char* end, bx:
 	return endPtr;
 }
 
-static bool parseTransform(ParserState* parser, const bx::StringView& str, float* transform)
+static bool parseTransform(const bx::StringView& str, float* transform)
 {
-	BX_UNUSED(parser);
-
 	const char* ptr = str.getPtr();
 	const char* end = str.getTerm();
 
@@ -746,11 +803,52 @@ bool pointListFromString(PointList* ptList, const bx::StringView& str)
 	return true;
 }
 
-static ParseAttr::Result parseGenericShapeAttribute(ParserState* parser, const bx::StringView& name, const bx::StringView& value, ShapeAttributes* attrs)
+static ParseAttr::Result parseStyle(const bx::StringView& str, ShapeAttributes* attrs)
 {
-	SSVG_WARN(bx::strCmp(name, "style", 5), "style attribute not supported");
+	const char* end = str.getTerm();
+	const char* ptr = skipWhitespace(str.getPtr(), end);
+	while (ptr != end) {
+		const char* nameStart = ptr;
+		while (ptr != end && (bx::isAlpha(*ptr) || *ptr == '-')) {
+			*ptr++;
+		}
 
-	if (!bx::strCmp(name, "stroke", 6)) {
+		if (ptr == end) {
+			return ParseAttr::Fail;
+		}
+
+		const bx::StringView name(nameStart, ptr);
+
+		ptr = skipWhitespace(ptr, end);
+
+		if (*ptr != ':') {
+			return ParseAttr::Fail;
+		}
+		
+		ptr = skipWhitespace(ptr + 1, end);
+
+		const char* valueStart = ptr;
+		while (ptr != end && *ptr != ';') {
+			++ptr;
+		}
+
+		const bx::StringView value(valueStart, ptr);
+
+		ptr = skipWhitespace(ptr + (ptr != end ? 1 : 0), end);
+
+		if (parseGenericShapeAttribute(name, value, attrs) == ParseAttr::Fail) {
+			return ParseAttr::Fail;
+		}
+	}
+
+	return ParseAttr::OK;
+}
+
+static ParseAttr::Result parseGenericShapeAttribute(const bx::StringView& name, const bx::StringView& value, ShapeAttributes* attrs)
+{
+	if (!bx::strCmp(name, "style", 5)) {
+		return parseStyle(value, attrs);
+	} else if (!bx::strCmp(name, "stroke", 6)) {
 		const bx::StringView partialName(name.getPtr() + 6, name.getLength() - 6);
 		if (partialName.getLength() == 0) {
 			return parsePaint(value, &attrs->m_StrokePaint) ? ParseAttr::OK : ParseAttr::Fail;
@@ -783,7 +881,7 @@ static ParseAttr::Result parseGenericShapeAttribute(ParserState* parser, const b
 		} else if (!bx::strCmp(partialName, "-opacity", 8)) {
 			return parseNumber(value, &attrs->m_StrokeOpacity, 0.0f, 1.0f) ? ParseAttr::OK : ParseAttr::Fail;
 		} else if (!bx::strCmp(partialName, "-width", 6)) {
-			return parseLength(parser, value, &attrs->m_StrokeWidth) ? ParseAttr::OK : ParseAttr::Fail;
+			return parseLength(value, &attrs->m_StrokeWidth) ? ParseAttr::OK : ParseAttr::Fail;
 		}
 	} else if (!bx::strCmp(name, "fill", 4)) {
 		const bx::StringView partialName(name.getPtr() + 4, name.getLength() - 4);
@@ -794,7 +892,7 @@ static ParseAttr::Result parseGenericShapeAttribute(ParserState* parser, const b
 		} else if (!bx::strCmp(partialName, "-rule", 5)) {
 			if (!bx::strCmp(value, "nonzero", 7)) {
 				attrs->m_FillRule = FillRule::NonZero;
-			} else if (!bx::strCmp(value, "evenodd")) {
+			} else if (!bx::strCmp(value, "evenodd", 7)) {
 				attrs->m_FillRule = FillRule::EvenOdd;
 			} else {
 				return ParseAttr::Fail;
@@ -808,10 +906,10 @@ static ParseAttr::Result parseGenericShapeAttribute(ParserState* parser, const b
 			shapeAttrsSetFontFamily(attrs, value);
 			return ParseAttr::OK;
 		} else if (!bx::strCmp(partialName, "-size", 5)) {
-			return parseLength(parser, value, &attrs->m_FontSize) ? ParseAttr::OK : ParseAttr::Fail;
+			return parseLength(value, &attrs->m_FontSize) ? ParseAttr::OK : ParseAttr::Fail;
 		}
 	} else if (!bx::strCmp(name, "transform", 9)) {
-		return parseTransform(parser, value, &attrs->m_Transform[0]) ? ParseAttr::OK : ParseAttr::Fail;
+		return parseTransform(value, &attrs->m_Transform[0]) ? ParseAttr::OK : ParseAttr::Fail;
 	} else if (!bx::strCmp(name, "id", 2)) {
 		shapeAttrsSetID(attrs, value);
 		return ParseAttr::OK;
@@ -841,7 +939,7 @@ static bool parseShape_Group(ParserState* parser, Shape* group)
 			err = true;
 		} else {
 			// Check if this a generic attribute (i.e. styling)
-			ParseAttr::Result res = parseGenericShapeAttribute(parser, name, value, &group->m_Attrs);
+			ParseAttr::Result res = parseGenericShapeAttribute(name, value, &group->m_Attrs);
 			if (res == ParseAttr::Fail) {
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
@@ -872,15 +970,15 @@ static bool parseShape_Text(ParserState* parser, Shape* text)
 			err = true;
 		} else {
 			// Check if this a generic attribute (i.e. styling)
-			ParseAttr::Result res = parseGenericShapeAttribute(parser, name, value, &text->m_Attrs);
+			ParseAttr::Result res = parseGenericShapeAttribute(name, value, &text->m_Attrs);
 			if (res == ParseAttr::Fail) {
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
 				// Text specific attributes
 				if (!bx::strCmp(name, "x", 1)) {
-					err = !parseLength(parser, value, &text->m_Text.x);
+					err = !parseLength(value, &text->m_Text.x);
 				} else if (!bx::strCmp(name, "y", 1)) {
-					err = !parseLength(parser, value, &text->m_Text.y);
+					err = !parseLength(value, &text->m_Text.y);
 				} else if (!bx::strCmp(name, "text-anchor", 11)) {
 					if (!bx::strCmp(value, "start", 5)) {
 						text->m_Text.m_Anchor = TextAnchor::Start;
@@ -939,7 +1037,7 @@ static bool parseShape_Path(ParserState* parser, Shape* path)
 			err = true;
 		} else {
 			// Check if this a generic attribute (i.e. styling)
-			ParseAttr::Result res = parseGenericShapeAttribute(parser, name, value, &path->m_Attrs);
+			ParseAttr::Result res = parseGenericShapeAttribute(name, value, &path->m_Attrs);
 			if (res == ParseAttr::Fail) {
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
@@ -981,23 +1079,23 @@ static bool parseShape_Rect(ParserState* parser, Shape* rect)
 			err = true;
 		} else {
 			// Check if this a generic attribute (i.e. styling)
-			ParseAttr::Result res = parseGenericShapeAttribute(parser, name, value, &rect->m_Attrs);
+			ParseAttr::Result res = parseGenericShapeAttribute(name, value, &rect->m_Attrs);
 			if (res == ParseAttr::Fail) {
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
 				// Rect specific attributes.
 				if (!bx::strCmp(name, "width", 5)) {
-					err = !parseLength(parser, value, &rect->m_Rect.width);
+					err = !parseLength(value, &rect->m_Rect.width);
 				} else if (!bx::strCmp(name, "height", 6)) {
-					err = !parseLength(parser, value, &rect->m_Rect.height);
+					err = !parseLength(value, &rect->m_Rect.height);
 				} else if (!bx::strCmp(name, "rx", 2)) {
-					err = !parseLength(parser, value, &rect->m_Rect.rx);
+					err = !parseLength(value, &rect->m_Rect.rx);
 				} else if (!bx::strCmp(name, "ry", 2)) {
-					err = !parseLength(parser, value, &rect->m_Rect.ry);
+					err = !parseLength(value, &rect->m_Rect.ry);
 				} else if (!bx::strCmp(name, "x", 1)) {
-					err = !parseLength(parser, value, &rect->m_Rect.x);
+					err = !parseLength(value, &rect->m_Rect.x);
 				} else if (!bx::strCmp(name, "y", 1)) {
-					err = !parseLength(parser, value, &rect->m_Rect.y);
+					err = !parseLength(value, &rect->m_Rect.y);
 				} else {
 					SSVG_WARN(false, "Ignoring rect attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
 				}
@@ -1033,17 +1131,17 @@ static bool parseShape_Circle(ParserState* parser, Shape* circle)
 			err = true;
 		} else {
 			// Check if this a generic attribute (i.e. styling)
-			ParseAttr::Result res = parseGenericShapeAttribute(parser, name, value, &circle->m_Attrs);
+			ParseAttr::Result res = parseGenericShapeAttribute(name, value, &circle->m_Attrs);
 			if (res == ParseAttr::Fail) {
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
 				// Circle specific attributes.
 				if (!bx::strCmp(name, "cx", 2)) {
-					err = !parseLength(parser, value, &circle->m_Circle.cx);
+					err = !parseLength(value, &circle->m_Circle.cx);
 				} else if (!bx::strCmp(name, "cy", 2)) {
-					err = !parseLength(parser, value, &circle->m_Circle.cy);
+					err = !parseLength(value, &circle->m_Circle.cy);
 				} else if (!bx::strCmp(name, "r", 1)) {
-					err = !parseLength(parser, value, &circle->m_Circle.r);
+					err = !parseLength(value, &circle->m_Circle.r);
 				} else {
 					SSVG_WARN(false, "Ignoring circle attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
 				}
@@ -1079,19 +1177,19 @@ static bool parseShape_Line(ParserState* parser, Shape* line)
 			err = true;
 		} else {
 			// Check if this a generic attribute (i.e. styling)
-			ParseAttr::Result res = parseGenericShapeAttribute(parser, name, value, &line->m_Attrs);
+			ParseAttr::Result res = parseGenericShapeAttribute(name, value, &line->m_Attrs);
 			if (res == ParseAttr::Fail) {
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
 				// Line specific attributes.
 				if (!bx::strCmp(name, "x1", 2)) {
-					err = !parseLength(parser, value, &line->m_Line.x1);
+					err = !parseLength(value, &line->m_Line.x1);
 				} else if (!bx::strCmp(name, "x2", 2)) {
-					err = !parseLength(parser, value, &line->m_Line.x2);
+					err = !parseLength(value, &line->m_Line.x2);
 				} else if (!bx::strCmp(name, "y1", 2)) {
-					err = !parseLength(parser, value, &line->m_Line.y1);
+					err = !parseLength(value, &line->m_Line.y1);
 				} else if (!bx::strCmp(name, "y2", 2)) {
-					err = !parseLength(parser, value, &line->m_Line.y2);
+					err = !parseLength(value, &line->m_Line.y2);
 				} else {
 					SSVG_WARN(false, "Ignoring line attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
 				}
@@ -1127,19 +1225,19 @@ static bool parseShape_Ellipse(ParserState* parser, Shape* ellipse)
 			err = true;
 		} else {
 			// Check if this a generic attribute (i.e. styling)
-			ParseAttr::Result res = parseGenericShapeAttribute(parser, name, value, &ellipse->m_Attrs);
+			ParseAttr::Result res = parseGenericShapeAttribute(name, value, &ellipse->m_Attrs);
 			if (res == ParseAttr::Fail) {
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
 				// Ellipse specific attributes.
 				if (!bx::strCmp(name, "cx", 2)) {
-					err = !parseLength(parser, value, &ellipse->m_Ellipse.cx);
+					err = !parseLength(value, &ellipse->m_Ellipse.cx);
 				} else if (!bx::strCmp(name, "cy", 2)) {
-					err = !parseLength(parser, value, &ellipse->m_Ellipse.cy);
+					err = !parseLength(value, &ellipse->m_Ellipse.cy);
 				} else if (!bx::strCmp(name, "rx", 2)) {
-					err = !parseLength(parser, value, &ellipse->m_Ellipse.rx);
+					err = !parseLength(value, &ellipse->m_Ellipse.rx);
 				} else if (!bx::strCmp(name, "ry", 2)) {
-					err = !parseLength(parser, value, &ellipse->m_Ellipse.ry);
+					err = !parseLength(value, &ellipse->m_Ellipse.ry);
 				} else {
 					SSVG_WARN(false, "Ignoring ellipse attribute: %.*s=\"%.*s\"", name.getLength(), name.getPtr(), value.getLength(), value.getPtr());
 				}
@@ -1175,7 +1273,7 @@ static bool parseShape_PointList(ParserState* parser, Shape* shape)
 			err = true;
 		} else {
 			// Check if this a generic attribute (i.e. styling)
-			ParseAttr::Result res = parseGenericShapeAttribute(parser, name, value, &shape->m_Attrs);
+			ParseAttr::Result res = parseGenericShapeAttribute(name, value, &shape->m_Attrs);
 			if (res == ParseAttr::Fail) {
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
