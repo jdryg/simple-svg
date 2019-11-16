@@ -148,8 +148,8 @@ struct FillRule
 {
 	enum Enum : uint32_t
 	{
-		NonZero,
-		EvenOdd
+		NonZero = 0,
+		EvenOdd = 1
 	};
 };
 
