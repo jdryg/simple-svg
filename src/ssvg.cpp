@@ -7,8 +7,20 @@
 
 namespace ssvg
 {
+struct ShapeAttributeFreeListNode
+{
+	ShapeAttributeFreeListNode* m_Next;
+	ShapeAttributeFreeListNode* m_Prev;
+	ShapeAttributes* m_Attrs;
+	uint32_t m_NumAttrs;
+	uint32_t m_FirstFreeID;
+};
+
 bx::AllocatorI* s_Allocator = nullptr;
-ShapeAttributes s_DefaultAttrs;
+static ShapeAttributeFreeListNode* s_ShapeAttrFreeListHead = nullptr;
+
+static ShapeAttributes* shapeAttrsAlloc();
+static void shapeAttrsFree(ShapeAttributes* attrs);
 
 void transformIdentity(float* transform)
 {
@@ -74,7 +86,7 @@ Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const Sha
 	if (shapeList->m_NumShapes + 1 > shapeList->m_Capacity) {
 		const uint32_t oldCapacity = shapeList->m_Capacity;
 
-		// TODO: Since shapes are faily large objects, check if allocating a constant amount each time
+		// TODO: Since shapes are fairly large objects, check if allocating a constant amount each time
 		// somehow helps.
 		shapeList->m_Capacity = oldCapacity ? (oldCapacity * 3) / 2 : 4;
 		shapeList->m_Shapes = (Shape*)BX_REALLOC(s_Allocator, shapeList->m_Shapes, sizeof(Shape) * shapeList->m_Capacity);
@@ -83,17 +95,16 @@ Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const Sha
 
 	Shape* shape = &shapeList->m_Shapes[shapeList->m_NumShapes++];
 	shape->m_Type = type;
-
-	// Copy parent attributes
-	if (parentAttrs) {
-		bx::memCopy(&shape->m_Attrs, parentAttrs, sizeof(ShapeAttributes));
-	} else {
-		bx::memCopy(&shape->m_Attrs, &s_DefaultAttrs, sizeof(ShapeAttributes));
-	}
-
-	// Reset id and transform
-	shape->m_Attrs.m_ID[0] = '\0';
-	transformIdentity(&shape->m_Attrs.m_Transform[0]);
+	shape->m_Attrs = shapeAttrsAlloc();
+	bx::memSet(shape->m_Attrs, 0, sizeof(ShapeAttributes));
+	shape->m_Attrs->m_Parent = parentAttrs;
+	shape->m_Attrs->m_Flags = AttribFlags::InheritAll;
+	shape->m_Attrs->m_Opacity = 1.0f;
+	shape->m_Attrs->m_ID[0] = '\0';
+#if SSVG_CONFIG_CLASS_MAX_LEN
+	shape->m_Attrs->m_Class[0] = '\0';
+#endif
+	transformIdentity(&shape->m_Attrs->m_Transform[0]);
 
 	return shape;
 }
@@ -198,7 +209,7 @@ void shapeListCalcBounds(ShapeList* shapeList, float* bounds)
 		// Since this is a group, the child's bounding rect should be transformed using its
 		// transformation matrix before calculating the group's local bounding rect.
 		float childTransformedRect[4];
-		transformBoundingRect(&shape->m_Attrs.m_Transform[0], &shape->m_BoundingRect[0], &childTransformedRect[0]);
+		transformBoundingRect(&shape->m_Attrs->m_Transform[0], &shape->m_BoundingRect[0], &childTransformedRect[0]);
 
 		bounds[0] = bx::min<float>(bounds[0], childTransformedRect[0]);
 		bounds[1] = bx::min<float>(bounds[1], childTransformedRect[1]);
@@ -534,10 +545,11 @@ void shapeAttrsSetClass(ShapeAttributes* attrs, const bx::StringView& value)
 #endif
 }
 
-Image* imageCreate()
+Image* imageCreate(const ShapeAttributes* baseAttrs)
 {
 	Image* img = (Image*)BX_ALLOC(s_Allocator, sizeof(Image));
 	bx::memSet(img, 0, sizeof(Image));
+	bx::memCopy(&img->m_BaseAttrs, baseAttrs, sizeof(ShapeAttributes));
 
 	return img;
 }
@@ -548,26 +560,10 @@ void imageDestroy(Image* img)
 	BX_FREE(s_Allocator, img);
 }
 
-void initLib(bx::AllocatorI* allocator, const ShapeAttributes* defaultAttrs)
+void initLib(bx::AllocatorI* allocator)
 {
 	s_Allocator = allocator;
-	if (defaultAttrs) {
-		bx::memCopy(&s_DefaultAttrs, defaultAttrs, sizeof(ShapeAttributes));
-	} else {
-		bx::memSet(&s_DefaultAttrs, 0, sizeof(ShapeAttributes));
-		s_DefaultAttrs.m_StrokeWidth = 1.0f;
-		s_DefaultAttrs.m_StrokeMiterLimit = 4.0f;
-		s_DefaultAttrs.m_StrokeOpacity = 1.0f;
-		s_DefaultAttrs.m_StrokePaint.m_Type = PaintType::None;
-		s_DefaultAttrs.m_StrokePaint.m_ColorABGR = 0x00000000; // Transparent
-		s_DefaultAttrs.m_StrokeLineCap = LineCap::Butt;
-		s_DefaultAttrs.m_StrokeLineJoin = LineJoin::Miter;
-		s_DefaultAttrs.m_FillOpacity = 1.0f;
-		s_DefaultAttrs.m_FillPaint.m_Type = PaintType::None;
-		s_DefaultAttrs.m_FillPaint.m_ColorABGR = 0x00000000;
-		transformIdentity(&s_DefaultAttrs.m_Transform[0]);
-		shapeAttrsSetFontFamily(&s_DefaultAttrs, "sans-serif");
-	}
+	s_ShapeAttrFreeListHead = nullptr;
 }
 
 bool shapeCopy(Shape* dst, const Shape* src, bool copyAttrs)
@@ -577,7 +573,7 @@ bool shapeCopy(Shape* dst, const Shape* src, bool copyAttrs)
 	dst->m_Type = type;
 	bx::memCopy(&dst->m_BoundingRect[0], &src->m_BoundingRect[0], sizeof(float) * 4);
 	if (copyAttrs) {
-		bx::memCopy(&dst->m_Attrs, &src->m_Attrs, sizeof(ShapeAttributes));
+		bx::memCopy(dst->m_Attrs, src->m_Attrs, sizeof(ShapeAttributes));
 	}
 
 	switch (type) {
@@ -668,6 +664,8 @@ void shapeFree(Shape* shape)
 	default:
 		break;
 	}
+
+	shapeAttrsFree(shape->m_Attrs);
 }
 
 void shapeUpdateBounds(Shape* shape)
@@ -718,5 +716,73 @@ void shapeUpdateBounds(Shape* shape)
 	}
 
 	bx::memCopy(&shape->m_BoundingRect[0], &bounds[0], sizeof(float) * 4);
+}
+
+static ShapeAttributes* shapeAttrsAllocFromNode(ShapeAttributeFreeListNode* node)
+{
+	SSVG_CHECK(node->m_FirstFreeID != UINT32_MAX, "No free slot in free list node. This function shouldn't have been called");
+
+	ShapeAttributes* attrs = &node->m_Attrs[node->m_FirstFreeID];
+	const uint32_t nextFreeID = *(uint32_t*)attrs;
+
+	node->m_FirstFreeID = nextFreeID;
+
+	return attrs;
+}
+
+static ShapeAttributes* shapeAttrsAlloc()
+{
+	static const uint32_t kNumShapeAttributesPerBatch = 1024;
+
+	ShapeAttributeFreeListNode* node = s_ShapeAttrFreeListHead;
+	while (node) {
+		if (node->m_FirstFreeID != UINT32_MAX) {
+			return shapeAttrsAllocFromNode(node);
+		}
+
+		node = node->m_Next;
+	}
+
+	node = (ShapeAttributeFreeListNode*)BX_ALLOC(s_Allocator, sizeof(ShapeAttributeFreeListNode));
+	SSVG_CHECK(node != nullptr, "Failed to allocate shape attributes");
+
+	node->m_Attrs = (ShapeAttributes*)BX_ALLOC(s_Allocator, sizeof(ShapeAttributes) * kNumShapeAttributesPerBatch);
+	node->m_NumAttrs = kNumShapeAttributesPerBatch;
+	node->m_Next = s_ShapeAttrFreeListHead;
+	node->m_Prev = nullptr;
+
+	node->m_FirstFreeID = 0;
+	for (uint32_t i = 0; i < kNumShapeAttributesPerBatch - 1; ++i) {
+		*(uint32_t*)&node->m_Attrs[i] = i + 1;
+	}
+	*(uint32_t*)&node->m_Attrs[kNumShapeAttributesPerBatch - 1] = UINT32_MAX;
+
+	if (s_ShapeAttrFreeListHead != nullptr) {
+		s_ShapeAttrFreeListHead->m_Prev = node;
+	}
+	s_ShapeAttrFreeListHead = node;
+		
+	return shapeAttrsAllocFromNode(node);
+}
+
+static void shapeAttrsFree(ShapeAttributes* attrs)
+{
+	// Find the free list node attrs belongs to
+	ShapeAttributeFreeListNode* node = s_ShapeAttrFreeListHead;
+	while (node) {
+		if (attrs >= node->m_Attrs && attrs < node->m_Attrs + node->m_NumAttrs) {
+			break;
+		}
+
+		node = node->m_Next;
+	}
+
+	SSVG_CHECK(node != nullptr, "Shape attributes not allocated via the free list (double deallocation?)");
+
+	const uint32_t id = (uint32_t)(attrs - node->m_Attrs);
+	SSVG_CHECK(id < node->m_NumAttrs, "Index out of bounds");
+
+	*(uint32_t*)attrs = node->m_FirstFreeID;
+	node->m_FirstFreeID = id;
 }
 } // namespace svg

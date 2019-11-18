@@ -9,7 +9,6 @@ BX_PRAGMA_DIAGNOSTIC_IGNORED_MSVC(4127) // conditional expression is constant
 namespace ssvg
 {
 extern bx::AllocatorI* s_Allocator;
-extern ShapeAttributes s_DefaultAttrs;
 
 struct ParseAttr
 {
@@ -851,10 +850,13 @@ static ParseAttr::Result parseGenericShapeAttribute(const bx::StringView& name, 
 	} else if (!bx::strCmp(name, "stroke", 6)) {
 		const bx::StringView partialName(name.getPtr() + 6, name.getLength() - 6);
 		if (partialName.getLength() == 0) {
+			attrs->m_Flags &= ~AttribFlags::StrokePaintInherit;
 			return parsePaint(value, &attrs->m_StrokePaint) ? ParseAttr::OK : ParseAttr::Fail;
 		} else if (!bx::strCmp(partialName, "-miterlimit", 11)) {
+			attrs->m_Flags &= ~AttribFlags::StrokeMiterLimitInherit;
 			return parseNumber(value, &attrs->m_StrokeMiterLimit, 1.0f) ? ParseAttr::OK : ParseAttr::Fail;
 		} else if (!bx::strCmp(partialName, "-linejoin", 9)) {
+			attrs->m_Flags &= ~AttribFlags::StrokeLineJoinInherit;
 			if (!bx::strCmp(value, "miter", 5)) {
 				attrs->m_StrokeLineJoin = LineJoin::Miter;
 			} else if (!bx::strCmp(value, "round", 5)) {
@@ -867,6 +869,7 @@ static ParseAttr::Result parseGenericShapeAttribute(const bx::StringView& name, 
 
 			return ParseAttr::OK;
 		} else if (!bx::strCmp(partialName, "-linecap", 8)) {
+			attrs->m_Flags &= ~AttribFlags::StrokeLineCapInherit;
 			if (!bx::strCmp(value, "butt", 4)) {
 				attrs->m_StrokeLineCap = LineCap::Butt;
 			} else if (!bx::strCmp(value, "round", 5)) {
@@ -879,17 +882,22 @@ static ParseAttr::Result parseGenericShapeAttribute(const bx::StringView& name, 
 
 			return ParseAttr::OK;
 		} else if (!bx::strCmp(partialName, "-opacity", 8)) {
+			attrs->m_Flags &= ~AttribFlags::StrokeOpacityInherit;
 			return parseNumber(value, &attrs->m_StrokeOpacity, 0.0f, 1.0f) ? ParseAttr::OK : ParseAttr::Fail;
 		} else if (!bx::strCmp(partialName, "-width", 6)) {
+			attrs->m_Flags &= ~AttribFlags::StrokeWidthInherit;
 			return parseLength(value, &attrs->m_StrokeWidth) ? ParseAttr::OK : ParseAttr::Fail;
 		}
 	} else if (!bx::strCmp(name, "fill", 4)) {
 		const bx::StringView partialName(name.getPtr() + 4, name.getLength() - 4);
 		if (partialName.getLength() == 0) {
+			attrs->m_Flags &= ~AttribFlags::FillPaintInherit;
 			return parsePaint(value, &attrs->m_FillPaint) ? ParseAttr::OK : ParseAttr::Fail;
 		} else if (!bx::strCmp(partialName, "-opacity", 8)) {
+			attrs->m_Flags &= ~AttribFlags::FillOpacityInherit;
 			return parseNumber(value, &attrs->m_FillOpacity, 0.0f, 1.0f) ? ParseAttr::OK : ParseAttr::Fail;
 		} else if (!bx::strCmp(partialName, "-rule", 5)) {
+			attrs->m_Flags &= ~AttribFlags::FillRuleInherit;
 			if (!bx::strCmp(value, "nonzero", 7)) {
 				attrs->m_FillRule = FillRule::NonZero;
 			} else if (!bx::strCmp(value, "evenodd", 7)) {
@@ -903,9 +911,11 @@ static ParseAttr::Result parseGenericShapeAttribute(const bx::StringView& name, 
 	} else if (!bx::strCmp(name, "font", 4)) {
 		const bx::StringView partialName(name.getPtr() + 4, name.getLength() - 4);
 		if (!bx::strCmp(partialName, "-family", 7)) {
+			attrs->m_Flags &= ~AttribFlags::FontFamilyInherit;
 			shapeAttrsSetFontFamily(attrs, value);
 			return ParseAttr::OK;
 		} else if (!bx::strCmp(partialName, "-size", 5)) {
+			attrs->m_Flags &= ~AttribFlags::FontSizeInherit;
 			return parseLength(value, &attrs->m_FontSize) ? ParseAttr::OK : ParseAttr::Fail;
 		}
 	} else if (!bx::strCmp(name, "transform", 9)) {
@@ -939,7 +949,7 @@ static bool parseShape_Group(ParserState* parser, Shape* group)
 			err = true;
 		} else {
 			// Check if this a generic attribute (i.e. styling)
-			ParseAttr::Result res = parseGenericShapeAttribute(name, value, &group->m_Attrs);
+			ParseAttr::Result res = parseGenericShapeAttribute(name, value, group->m_Attrs);
 			if (res == ParseAttr::Fail) {
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
@@ -953,7 +963,7 @@ static bool parseShape_Group(ParserState* parser, Shape* group)
 		return false;
 	}
 
-	return parseShapes(parser, &group->m_ShapeList, &group->m_Attrs, "</g>", 4);
+	return parseShapes(parser, &group->m_ShapeList, group->m_Attrs, "</g>", 4);
 }
 
 static bool parseShape_Text(ParserState* parser, Shape* text)
@@ -970,7 +980,7 @@ static bool parseShape_Text(ParserState* parser, Shape* text)
 			err = true;
 		} else {
 			// Check if this a generic attribute (i.e. styling)
-			ParseAttr::Result res = parseGenericShapeAttribute(name, value, &text->m_Attrs);
+			ParseAttr::Result res = parseGenericShapeAttribute(name, value, text->m_Attrs);
 			if (res == ParseAttr::Fail) {
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
@@ -1037,7 +1047,7 @@ static bool parseShape_Path(ParserState* parser, Shape* path)
 			err = true;
 		} else {
 			// Check if this a generic attribute (i.e. styling)
-			ParseAttr::Result res = parseGenericShapeAttribute(name, value, &path->m_Attrs);
+			ParseAttr::Result res = parseGenericShapeAttribute(name, value, path->m_Attrs);
 			if (res == ParseAttr::Fail) {
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
@@ -1079,7 +1089,7 @@ static bool parseShape_Rect(ParserState* parser, Shape* rect)
 			err = true;
 		} else {
 			// Check if this a generic attribute (i.e. styling)
-			ParseAttr::Result res = parseGenericShapeAttribute(name, value, &rect->m_Attrs);
+			ParseAttr::Result res = parseGenericShapeAttribute(name, value, rect->m_Attrs);
 			if (res == ParseAttr::Fail) {
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
@@ -1131,7 +1141,7 @@ static bool parseShape_Circle(ParserState* parser, Shape* circle)
 			err = true;
 		} else {
 			// Check if this a generic attribute (i.e. styling)
-			ParseAttr::Result res = parseGenericShapeAttribute(name, value, &circle->m_Attrs);
+			ParseAttr::Result res = parseGenericShapeAttribute(name, value, circle->m_Attrs);
 			if (res == ParseAttr::Fail) {
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
@@ -1177,7 +1187,7 @@ static bool parseShape_Line(ParserState* parser, Shape* line)
 			err = true;
 		} else {
 			// Check if this a generic attribute (i.e. styling)
-			ParseAttr::Result res = parseGenericShapeAttribute(name, value, &line->m_Attrs);
+			ParseAttr::Result res = parseGenericShapeAttribute(name, value, line->m_Attrs);
 			if (res == ParseAttr::Fail) {
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
@@ -1225,7 +1235,7 @@ static bool parseShape_Ellipse(ParserState* parser, Shape* ellipse)
 			err = true;
 		} else {
 			// Check if this a generic attribute (i.e. styling)
-			ParseAttr::Result res = parseGenericShapeAttribute(name, value, &ellipse->m_Attrs);
+			ParseAttr::Result res = parseGenericShapeAttribute(name, value, ellipse->m_Attrs);
 			if (res == ParseAttr::Fail) {
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
@@ -1273,7 +1283,7 @@ static bool parseShape_PointList(ParserState* parser, Shape* shape)
 			err = true;
 		} else {
 			// Check if this a generic attribute (i.e. styling)
-			ParseAttr::Result res = parseGenericShapeAttribute(name, value, &shape->m_Attrs);
+			ParseAttr::Result res = parseGenericShapeAttribute(name, value, shape->m_Attrs);
 			if (res == ParseAttr::Fail) {
 				err = true;
 			} else if (res == ParseAttr::Unknown) {
@@ -1437,16 +1447,16 @@ static bool parseTag_svg(ParserState* parser, Image* img)
 		return false;
 	}
 
-	return parseShapes(parser, &img->m_ShapeList, &s_DefaultAttrs, "</svg>", 6);
+	return parseShapes(parser, &img->m_ShapeList, &img->m_BaseAttrs, "</svg>", 6);
 }
 
-Image* imageLoad(const char* xmlStr, uint32_t flags)
+Image* imageLoad(const char* xmlStr, uint32_t flags, const ShapeAttributes* baseAttrs)
 {
 	if (!xmlStr || *xmlStr == 0) {
 		return nullptr;
 	}
 
-	Image* img = imageCreate();
+	Image* img = imageCreate(baseAttrs);
 
 	ParserState parser;
 	parser.m_XMLString = xmlStr;

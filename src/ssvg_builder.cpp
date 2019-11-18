@@ -36,14 +36,11 @@ uint32_t shapeListAddGroup(ShapeList* shapeList, const ShapeAttributes* parentAt
 		Shape tmpGroup;
 		bx::memSet(&tmpGroup, 0, sizeof(Shape));
 		tmpGroup.m_Type = ShapeType::Group;
-		if (parentAttrs) {
-			bx::memCopy(&tmpGroup.m_Attrs, parentAttrs, sizeof(ShapeAttributes));
-		}
 		tmpGroup.m_ShapeList.m_Shapes = (Shape*)children; // NOTE: Casting a const to not-const should be ok in this case since the tmpGroup is passed as const to shapeCopy().
 		tmpGroup.m_ShapeList.m_NumShapes = numChildren;
 		tmpGroup.m_ShapeList.m_Capacity = 0; // capacity < count == list is read-only (should assert in debug mode if you try to alloc/shrink the list).
 
-		shapeCopy(group, &tmpGroup);
+		shapeCopy(group, &tmpGroup, false);
 	}
 
 	shapeUpdateBounds(group);
@@ -165,14 +162,11 @@ uint32_t shapeListAddPath(ShapeList* shapeList, const ShapeAttributes* parentAtt
 		Shape tmpPath;
 		bx::memSet(&tmpPath, 0, sizeof(Shape));
 		tmpPath.m_Type = ShapeType::Path;
-		if (parentAttrs) {
-			bx::memCopy(&tmpPath.m_Attrs, parentAttrs, sizeof(ShapeAttributes));
-		}
 		tmpPath.m_Path.m_Commands = (PathCmd*)commands;
 		tmpPath.m_Path.m_NumCommands = numCommands;
 		tmpPath.m_Path.m_Capacity = 0;
 
-		shapeCopy(path, &tmpPath);
+		shapeCopy(path, &tmpPath, false);
 	}
 
 	shapeUpdateBounds(path);
@@ -191,15 +185,12 @@ uint32_t shapeListAddText(ShapeList* shapeList, const ShapeAttributes* parentAtt
 		Shape tmpText;
 		bx::memSet(&tmpText, 0, sizeof(Shape));
 		tmpText.m_Type = ShapeType::Text;
-		if (parentAttrs) {
-			bx::memCopy(&tmpText.m_Attrs, parentAttrs, sizeof(ShapeAttributes));
-		}
 		tmpText.m_Text.x = x;
 		tmpText.m_Text.y = y;
 		tmpText.m_Text.m_Anchor = anchor;
 		tmpText.m_Text.m_String = (char*)str;
 
-		shapeCopy(text, &tmpText);
+		shapeCopy(text, &tmpText, false);
 	} else {
 		text->m_Text.x = x;
 		text->m_Text.y = y;
@@ -570,8 +561,5 @@ static void convertArcToBezier(Path* path, uint32_t cmdID, const float* arcToArg
 		ptanx = tanx;
 		ptany = tany;
 	}
-
-//	*cpx = x2;
-//	*cpy = y2;
 }
 }

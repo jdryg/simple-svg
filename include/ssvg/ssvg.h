@@ -234,8 +234,30 @@ struct Paint
 	};
 };
 
+struct AttribFlags
+{
+	enum Enum : uint32_t
+	{
+		StrokePaintInherit      = 1 << 0,
+		StrokeMiterLimitInherit = 1 << 1,
+		StrokeOpacityInherit    = 1 << 2,
+		StrokeWidthInherit      = 1 << 3,
+		StrokeLineJoinInherit   = 1 << 4,
+		StrokeLineCapInherit    = 1 << 5,
+		FillPaintInherit        = 1 << 6,
+		FillOpacityInherit      = 1 << 7,
+		FillRuleInherit         = 1 << 8,
+		FontSizeInherit         = 1 << 9,
+		FontFamilyInherit       = 1 << 10,
+
+		InheritAll = StrokePaintInherit | StrokeMiterLimitInherit | StrokeOpacityInherit | StrokeWidthInherit | StrokeLineJoinInherit | StrokeLineCapInherit 
+		           | FillPaintInherit | FillOpacityInherit | FillRuleInherit | FontSizeInherit | FontFamilyInherit
+	};
+};
+
 struct ShapeAttributes
 {
+	const ShapeAttributes* m_Parent;
 	Paint m_StrokePaint;
 	Paint m_FillPaint;
 	float m_Transform[6];
@@ -245,6 +267,7 @@ struct ShapeAttributes
 	float m_FillOpacity;
 	float m_FontSize;
 	float m_Opacity;
+	uint32_t m_Flags;
 	LineJoin::Enum m_StrokeLineJoin;
 	LineCap::Enum m_StrokeLineCap;
 	FillRule::Enum m_FillRule;
@@ -258,7 +281,7 @@ struct ShapeAttributes
 struct Shape
 {
 	ShapeType::Enum m_Type;
-	ShapeAttributes m_Attrs;
+	ShapeAttributes* m_Attrs;
 	float m_BoundingRect[4]; // NOTE: Transformation independent axis-aligned bounding rect {minx, miny, maxx, maxy}
 
 	union
@@ -277,6 +300,7 @@ struct Shape
 struct Image
 {
 	ShapeList m_ShapeList;
+	ShapeAttributes m_BaseAttrs;
 	float m_Width;
 	float m_Height;
 	float m_ViewBox[4];
@@ -299,11 +323,11 @@ struct ImageLoadFlags
 	};
 };
 
-void initLib(bx::AllocatorI* allocator, const ShapeAttributes* defaultAttrs);
+void initLib(bx::AllocatorI* allocator);
 
-Image* imageLoad(const char* xmlStr, uint32_t flags);
+Image* imageLoad(const char* xmlStr, uint32_t flags, const ShapeAttributes* baseAttrs);
 bool imageSave(const Image* img, bx::WriterI* writer);
-Image* imageCreate();
+Image* imageCreate(const ShapeAttributes* baseAttrs);
 void imageDestroy(Image* img);
 
 Shape* shapeListAllocShape(ShapeList* shapeList, ShapeType::Enum type, const ShapeAttributes* parentAttrs);

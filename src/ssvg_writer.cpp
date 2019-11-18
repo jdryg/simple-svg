@@ -4,8 +4,6 @@
 
 namespace ssvg
 {
-extern ShapeAttributes s_DefaultAttrs;
-
 struct SaveAttr
 {
 	enum Enum : uint32_t
@@ -333,12 +331,12 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, const Shape
 		switch (shapeType) {
 		case ShapeType::Group:
 			bx::write(writer, &err, "%*s<g ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::All)) {
+			if (!writeShapeAttributes(writer, shape->m_Attrs, parentAttrs, SaveAttr::All)) {
 				return false;
 			}
 			bx::write(writer, ">\n");
 
-			if (!writeShapeList(writer, &shape->m_ShapeList, &shape->m_Attrs, indentation + 2)) {
+			if (!writeShapeList(writer, &shape->m_ShapeList, shape->m_Attrs, indentation + 2)) {
 				return false;
 			}
 
@@ -346,7 +344,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, const Shape
 			break;
 		case ShapeType::Rect:
 			bx::write(writer, &err, "%*s<rect ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
+			if (!writeShapeAttributes(writer, shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
 				return false;
 			}
 			bx::write(writer, &err, "x=\"%g\" y=\"%g\" width=\"%g\" height=\"%g\" "
@@ -365,7 +363,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, const Shape
 			break;
 		case ShapeType::Circle:
 			bx::write(writer, &err, "%*s<circle ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
+			if (!writeShapeAttributes(writer, shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
 				return false;
 			}
 			bx::write(writer, &err, "cx=\"%g\" cy=\"%g\" r=\"%g\" />\n"
@@ -375,7 +373,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, const Shape
 			break;
 		case ShapeType::Ellipse:
 			bx::write(writer, &err, "%*s<ellipse ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
+			if (!writeShapeAttributes(writer, shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
 				return false;
 			}
 			bx::write(writer, &err, "cx=\"%g\" cy=\"%g\" rx=\"%g\" ry=\"%g\" />\n"
@@ -386,7 +384,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, const Shape
 			break;
 		case ShapeType::Line:
 			bx::write(writer, &err, "%*s<line ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
+			if (!writeShapeAttributes(writer, shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
 				return false;
 			}
 			bx::write(writer, &err, "x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" />\n"
@@ -397,7 +395,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, const Shape
 			break;
 		case ShapeType::Polyline:
 			bx::write(writer, &err, "%*s<polyline ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
+			if (!writeShapeAttributes(writer, shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
 				return false;
 			}
 			if (!writePointList(writer, &shape->m_PointList)) {
@@ -407,7 +405,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, const Shape
 			break;
 		case ShapeType::Polygon:
 			bx::write(writer, &err, "%*s<polygon ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
+			if (!writeShapeAttributes(writer, shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
 				return false;
 			}
 			if (!writePointList(writer, &shape->m_PointList)) {
@@ -417,7 +415,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, const Shape
 			break;
 		case ShapeType::Path:
 			bx::write(writer, &err, "%*s<path ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
+			if (!writeShapeAttributes(writer, shape->m_Attrs, parentAttrs, SaveAttr::Shape | SaveAttr::ConditionalPaints)) {
 				return false;
 			}
 			if (!writePath(writer, &shape->m_Path)) {
@@ -427,7 +425,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, const Shape
 			break;
 		case ShapeType::Text:
 			bx::write(writer, &err, "%*s<text ", indentation, "");
-			if (!writeShapeAttributes(writer, &shape->m_Attrs, parentAttrs, SaveAttr::Text)) {
+			if (!writeShapeAttributes(writer, shape->m_Attrs, parentAttrs, SaveAttr::Text)) {
 				return false;
 			}
 			bx::write(writer, &err, "x=\"%g\" y=\"%g\" text-anchor=\"%s\">%s</text>\n"
@@ -466,7 +464,7 @@ bool imageSave(const Image* img, bx::WriterI* writer)
 	}
 	bx::write(writer, "xmlns=\"http://www.w3.org/2000/svg\">\n");
 
-	if (!writeShapeList(writer, &img->m_ShapeList, &s_DefaultAttrs, 1)) {
+	if (!writeShapeList(writer, &img->m_ShapeList, &img->m_BaseAttrs, 1)) {
 		return false;
 	}
 
