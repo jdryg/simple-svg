@@ -809,7 +809,7 @@ static ParseAttr::Result parseStyle(const bx::StringView& str, ShapeAttributes* 
 	while (ptr != end) {
 		const char* nameStart = ptr;
 		while (ptr != end && (bx::isAlpha(*ptr) || *ptr == '-')) {
-			*ptr++;
+			ptr++;
 		}
 
 		if (ptr == end) {
@@ -1293,8 +1293,8 @@ static bool parseShape_PointList(ParserState* parser, Shape* shape)
 					err = !pointListFromString(&ptList, value);
 
 					if (!err && ptList.m_NumPoints >= 2 &&
-						(shape->m_Type == ShapeType::Polygon && (parser->m_Flags & ImageLoadFlags::ConvertPolygonsToPaths) != 0) ||
-						(shape->m_Type == ShapeType::Polyline && (parser->m_Flags & ImageLoadFlags::ConvertPolylinesToPaths) != 0)) 
+						((shape->m_Type == ShapeType::Polygon && (parser->m_Flags & ImageLoadFlags::ConvertPolygonsToPaths) != 0) ||
+						(shape->m_Type == ShapeType::Polyline && (parser->m_Flags & ImageLoadFlags::ConvertPolylinesToPaths) != 0))) 
 					{
 						const float* coords = ptList.m_Coords;
 
