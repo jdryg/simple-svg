@@ -243,7 +243,7 @@ static bool parserGetAttribute(ParserState* parser, bx::StringView* name, bx::St
 	const char* namePtr = parser->m_Ptr;
 
 	// Skip the identifier
-	while (bx::isAlpha(*parser->m_Ptr)
+	while (bx::isAlphaNum(*parser->m_Ptr)
 		|| *parser->m_Ptr == '-'
 		|| *parser->m_Ptr == '_'
 		|| *parser->m_Ptr == ':') {
@@ -971,7 +971,7 @@ static bool parseShape_Text(ParserState* parser, Shape* text)
 	bool err = false;
 	while (!parserDone(parser) && !err) {
 		SSVG_CHECK(!(parser->m_Ptr[0] == '/' && parser->m_Ptr[1] == '>'), "Empty text element");
-		if (parserExpectingChar(parser, '>')) {
+		if (parser->m_Ptr[0] == '>') {
 			break;
 		}
 
@@ -1010,6 +1010,10 @@ static bool parseShape_Text(ParserState* parser, Shape* text)
 		return false;
 	}
 
+#if 1
+	parserSkipTag(parser);
+#else
+	// TODO: Parse <tspan> blocks
 	const char* txtPtr = parser->m_Ptr;
 
 	while (!parserDone(parser) && *parser->m_Ptr != '<') {
@@ -1024,6 +1028,7 @@ static bool parseShape_Text(ParserState* parser, Shape* text)
 	text->m_Text.m_String = (char*)BX_ALLOC(s_Allocator, sizeof(char) * (txtLen + 1));
 	bx::memCopy(text->m_Text.m_String, txtPtr, txtLen);
 	text->m_Text.m_String[txtLen] = 0;
+#endif
 
 	return true;
 }

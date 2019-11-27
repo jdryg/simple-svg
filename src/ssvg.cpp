@@ -197,11 +197,16 @@ void shapeListDeleteShape(ShapeList* shapeList, uint32_t shapeID)
 
 void shapeListCalcBounds(ShapeList* shapeList, float* bounds)
 {
+	const uint32_t numShapes = shapeList->m_NumShapes;
+	if (numShapes == 0) {
+		bounds[0] = bounds[1] = bounds[2] = bounds[3] = 0.0f;
+		return;
+	}
+
 	bounds[0] = FLT_MAX;
 	bounds[1] = FLT_MAX;
 	bounds[2] = -FLT_MAX;
 	bounds[3] = -FLT_MAX;
-	const uint32_t numShapes = shapeList->m_NumShapes;
 	for (uint32_t i = 0; i < numShapes; ++i) {
 		Shape* shape = &shapeList->m_Shapes[i];
 		shapeUpdateBounds(shape);
@@ -710,6 +715,7 @@ void shapeUpdateBounds(Shape* shape)
 		break;
 	case ShapeType::Text:
 		// TODO: This is complicated!
+		bounds[0] = bounds[1] = bounds[2] = bounds[3] = 0.0f;
 		break;
 	default:
 		break;
