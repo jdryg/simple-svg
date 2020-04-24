@@ -390,6 +390,21 @@ static const char* parseCoord(const char* str, const char* end, float* coord)
 	return skipCommaWhitespace(coordEnd, end);
 }
 
+static const char* parseFlag(const char* str, const char* end, float* flag)
+{
+	const char* ptr = skipCommaWhitespace(str, end);
+
+	SSVG_CHECK(ptr != end && !bx::isAlpha(*ptr), "Parse error");
+
+	if (*ptr == '0') {
+		*flag = 0.0f;
+	} else {
+		*flag = 1.0f;
+	}
+
+	return skipCommaWhitespace(ptr + 1, end);
+}
+
 static bool parseViewBox(const bx::StringView& str, float* viewBox)
 {
 	const char* ptr = str.getPtr();
@@ -758,8 +773,8 @@ bool pathFromString(Path* path, const bx::StringView& str, uint32_t flags)
 			ptr = parseCoord(ptr, end, &cmd->m_Data[0]);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[1]);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[2]);
-			ptr = parseCoord(ptr, end, &cmd->m_Data[3]);
-			ptr = parseCoord(ptr, end, &cmd->m_Data[4]);
+			ptr = parseFlag(ptr, end, &cmd->m_Data[3]);
+			ptr = parseFlag(ptr, end, &cmd->m_Data[4]);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[5]);
 			ptr = parseCoord(ptr, end, &cmd->m_Data[6]);
 
