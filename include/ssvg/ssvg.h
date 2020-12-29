@@ -324,6 +324,7 @@ struct ImageLoadFlags
 };
 
 void initLib(bx::AllocatorI* allocator);
+void shutdownLib();
 
 Image* imageLoad(const char* xmlStr, uint32_t flags, const ShapeAttributes* baseAttrs);
 bool imageSave(const Image* img, bx::WriterI* writer);

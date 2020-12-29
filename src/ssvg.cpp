@@ -572,6 +572,20 @@ void initLib(bx::AllocatorI* allocator)
 	s_ShapeAttrFreeListHead = nullptr;
 }
 
+void shutdownLib()
+{
+	ShapeAttributeFreeListNode* node = s_ShapeAttrFreeListHead;
+	while (node) {
+		ShapeAttributeFreeListNode* next = node->m_Next;
+
+		BX_FREE(s_Allocator, node->m_Attrs);
+		BX_FREE(s_Allocator, node);
+
+		node = next;
+	}
+	s_ShapeAttrFreeListHead = nullptr;
+}
+
 bool shapeCopy(Shape* dst, const Shape* src, bool copyAttrs)
 {
 	const ShapeType::Enum type = src->m_Type;
