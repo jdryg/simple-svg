@@ -14,6 +14,7 @@ struct ShapeAttributeFreeListNode
 	ShapeAttributes* m_Attrs;
 	uint32_t m_NumAttrs;
 	uint32_t m_FirstFreeID;
+	uint32_t m_NumFree;
 };
 
 bx::AllocatorI* s_Allocator = nullptr;
@@ -746,6 +747,7 @@ static ShapeAttributes* shapeAttrsAllocFromNode(ShapeAttributeFreeListNode* node
 	const uint32_t nextFreeID = *(uint32_t*)attrs;
 
 	node->m_FirstFreeID = nextFreeID;
+	node->m_NumFree--;
 
 	return attrs;
 }
@@ -770,6 +772,7 @@ static ShapeAttributes* shapeAttrsAlloc()
 	node->m_NumAttrs = kNumShapeAttributesPerBatch;
 	node->m_Next = s_ShapeAttrFreeListHead;
 	node->m_Prev = nullptr;
+	node->m_NumFree = kNumShapeAttributesPerBatch;
 
 	node->m_FirstFreeID = 0;
 	for (uint32_t i = 0; i < kNumShapeAttributesPerBatch - 1; ++i) {
@@ -804,5 +807,25 @@ static void shapeAttrsFree(ShapeAttributes* attrs)
 
 	*(uint32_t*)attrs = node->m_FirstFreeID;
 	node->m_FirstFreeID = id;
+
+	node->m_NumFree++;
+	if (node->m_NumFree == node->m_NumAttrs) {
+		BX_FREE(s_Allocator, node->m_Attrs);
+
+		ShapeAttributeFreeListNode* prev = node->m_Prev;
+		ShapeAttributeFreeListNode* next = node->m_Next;
+		if (prev) {
+			prev->m_Next = next;
+		}
+		if (next) {
+			next->m_Prev = prev;
+		}
+
+		if (s_ShapeAttrFreeListHead == node) {
+			s_ShapeAttrFreeListHead = next;
+		}
+
+		BX_FREE(s_Allocator, node);
+	}
 }
 } // namespace svg
