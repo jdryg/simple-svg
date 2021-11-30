@@ -166,7 +166,7 @@ bool pathToString(const Path* path, bx::WriterI* writer)
 			bx::write(writer, &err, "A%g %g %g %d %d %g %g", data[0], data[1], data[2], (int)data[3], (int)data[4], data[5], data[6]);
 			break;
 		case PathCmdType::ClosePath:
-			bx::write(writer, "Z");
+			bx::write(writer, &err, "Z");
 			break;
 		default:
 			SSVG_WARN(false, "Unknown path command");
@@ -300,22 +300,24 @@ static bool writeShapeAttributes(bx::WriterI* writer, const ShapeAttributes* att
 
 bool writePointList(bx::WriterI* writer, const PointList* pointList)
 {
-	bx::write(writer, "points=\"");
+	bx::Error err;
+	bx::write(writer, &err, "points=\"");
 	if (!pointListToString(pointList, writer)) {
 		return false;
 	}
-	bx::write(writer, "\" ");
+	bx::write(writer, &err, "\" ");
 
 	return true;
 }
 
 bool writePath(bx::WriterI* writer, const Path* path)
 {
-	bx::write(writer, "d=\"");
+	bx::Error err;
+	bx::write(writer, &err, "d=\"");
 	if (!pathToString(path, writer)) {
 		return false;
 	}
-	bx::write(writer, "\" ");
+	bx::write(writer, &err, "\" ");
 
 	return true;
 }
@@ -334,7 +336,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, const Shape
 			if (!writeShapeAttributes(writer, shape->m_Attrs, parentAttrs, SaveAttr::All)) {
 				return false;
 			}
-			bx::write(writer, ">\n");
+			bx::write(writer, &err, ">\n");
 
 			if (!writeShapeList(writer, &shape->m_ShapeList, shape->m_Attrs, indentation + 2)) {
 				return false;
@@ -359,7 +361,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, const Shape
 			if (shape->m_Rect.ry != 0.0f) {
 				bx::write(writer, &err, "ry=\"%g\" ", shape->m_Rect.ry);
 			}
-			bx::write(writer, "/>\n");
+			bx::write(writer, &err, "/>\n");
 			break;
 		case ShapeType::Circle:
 			bx::write(writer, &err, "%*s<circle ", indentation, "");
@@ -401,7 +403,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, const Shape
 			if (!writePointList(writer, &shape->m_PointList)) {
 				return false;
 			}
-			bx::write(writer, "/>\n");
+			bx::write(writer, &err, "/>\n");
 			break;
 		case ShapeType::Polygon:
 			bx::write(writer, &err, "%*s<polygon ", indentation, "");
@@ -411,7 +413,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, const Shape
 			if (!writePointList(writer, &shape->m_PointList)) {
 				return false;
 			}
-			bx::write(writer, "/>\n");
+			bx::write(writer, &err, "/>\n");
 			break;
 		case ShapeType::Path:
 			bx::write(writer, &err, "%*s<path ", indentation, "");
@@ -421,7 +423,7 @@ bool writeShapeList(bx::WriterI* writer, const ShapeList* shapeList, const Shape
 			if (!writePath(writer, &shape->m_Path)) {
 				return false;
 			}
-			bx::write(writer, "/>\n");
+			bx::write(writer, &err, "/>\n");
 			break;
 		case ShapeType::Text:
 			bx::write(writer, &err, "%*s<text ", indentation, "");
@@ -446,7 +448,7 @@ bool imageSave(const Image* img, bx::WriterI* writer)
 {
 	bx::Error err;
 	
-	bx::write(writer, "<svg ");
+	bx::write(writer, &err, "<svg ");
 	if (img->m_Width != 0.0f) {
 		bx::write(writer, &err, "width=\"%g\" ", img->m_Width);
 	}
@@ -462,13 +464,13 @@ bool imageSave(const Image* img, bx::WriterI* writer)
 	if (img->m_ViewBox[2] > 0.0f && img->m_ViewBox[3] > 0.0f) {
 		bx::write(writer, &err, "viewBox=\"%g %g %g %g\" ", img->m_ViewBox[0], img->m_ViewBox[1], img->m_ViewBox[2], img->m_ViewBox[3]);
 	}
-	bx::write(writer, "xmlns=\"http://www.w3.org/2000/svg\">\n");
+	bx::write(writer, &err, "xmlns=\"http://www.w3.org/2000/svg\">\n");
 
 	if (!writeShapeList(writer, &img->m_ShapeList, &img->m_BaseAttrs, 1)) {
 		return false;
 	}
 
-	bx::write(writer, "</svg>\n");
+	bx::write(writer, &err, "</svg>\n");
 
 	return true;
 }
